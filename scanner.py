@@ -300,3 +300,102 @@ def scan_and_alert() -> List[Dict[str, Any]]:
             {"id": aid, "ticker": ticker, "alert_ts": int(t_now.timestamp()), "alert_px": alert_px,
              "due_ts": t24h, "label": "t+24h",  "done": False},
         ])
+
+        # Return for CSV logging
+        new_alerts.append({"id": aid, "ticker": ticker, "ts": t_now.isoformat(), "price": alert_px, "hits": len(posts)})
+
+    save_state(state)
+    return new_alerts
+
+def process_followups() -> List[Dict[str, Any]]:
+    """Check pending follow-ups; when due, compute return and log outcome."""
+    state = load_state()
+    t_now = int(now_utc().timestamp())
+    state.setdefault("pending", [])
+    state.setdefault("metrics", {})
+
+    results=[]
+    new_pending=[]
+    for item in state["pending"]:
+        if item.get("done"):  # shouldn't happen, but skip
+            continue
+        if t_now >= int(item["due_ts"]):
+            ticker   = item["ticker"]
+            alert_px = float(item["alert_px"])
+            cur_px, src = get_last_price(ticker)
+            if not (cur_px and cur_px==cur_px):  # NaN guard
+                # try again next run
+                new_pending.append(item)
+                continue
+            ret_pct = ((cur_px/alert_px)-1.0)*100.0
+            label   = item["label"]
+            ts_iso  = datetime.fromtimestamp(item["due_ts"], tz=timezone.utc).isoformat()
+
+            # Log result row
+            results.append({
+                "id": item["id"], "ticker": ticker, "label": label,
+                "due_ts": ts_iso, "alert_px": alert_px, "cur_px": cur_px, "ret_pct": ret_pct
+            })
+
+            # Update simple "learning" metrics on 24h only
+            if label == "t+24h":
+                m = state["metrics"].get(ticker, {"count":0,"win_count":0,"avg_abs_move":0.0})
+                m["count"] = int(m.get("count",0)) + 1
+                # "Win" = absolute move >= 5% (you can tune)
+                win = 1 if abs(ret_pct) >= 5.0 else 0
+                m["win_count"] = int(m.get("win_count",0)) + win
+                # Update running average of absolute move
+                prev_n = m["count"] - 1
+                prev_avg = float(m.get("avg_abs_move",0.0))
+                m["avg_abs_move"] = ((prev_avg*prev_n) + abs(ret_pct)) / m["count"]
+                state["metrics"][ticker] = m
+
+                # Optional: post a small summary to Discord
+                summary = (
+                    f"**{ticker}** follow-up ({label}): {ret_pct:+.2f}% "
+                    f"(alert ${alert_px:.2f} → now ${cur_px:.2f})\n"
+                    f"Updated: win_rate={ (m['win_count']/m['count']*100):.0f}%  "
+                    f"avg |Δ|={m['avg_abs_move']:.2f}%  (n={m['count']})"
+                )
+                send_discord(summary, title="Price Follow-up")
+
+            elif label == "t+60m":
+                # Optional: also post the 60m result
+                msg = f"**{ticker}** follow-up ({label}): {ret_pct:+.2f}% (alert ${alert_px:.2f} → now ${cur_px:.2f})"
+                send_discord(msg, title="Price Follow-up")
+
+            # mark done (we won't carry it forward)
+            item["done"] = True
+            # do not append to new_pending
+        else:
+            # not due yet, keep it
+            new_pending.append(item)
+
+    state["pending"] = new_pending
+    save_state(state)
+    return results
+
+# ------------------ Main ------------------
+
+def main():
+    # Ensure CSV headers exist
+    ensure_csv_headers(ALERTS_CSV, ["id","ticker","alert_iso","alert_price","hits"])
+    ensure_csv_headers(OUTCOMES_CSV, ["id","ticker","label","due_iso","alert_price","cur_price","ret_pct"])
+
+    # 1) Run the scanner and send any new alerts
+    new_alerts = scan_and_alert()
+    for a in new_alerts:
+        append_csv(ALERTS_CSV, [a["id"], a["ticker"], a["ts"], f"{a['price']:.4f}", a["hits"]])
+
+    # 2) Process due follow-ups (60m/24h), send summaries, and log outcomes
+    outcomes = process_followups()
+    for o in outcomes:
+        append_csv(OUTCOMES_CSV, [
+            o["id"], o["ticker"], o["label"], o["due_ts"],
+            f"{o['alert_px']:.4f}", f"{o['cur_px']:.4f}", f"{o['ret_pct']:.3f}"
+        ])
+
+    print("Scan complete. Alerts:", len(new_alerts), "Follow-ups processed:", len(outcomes))
+
+if __name__ == "__main__":
+    main()
