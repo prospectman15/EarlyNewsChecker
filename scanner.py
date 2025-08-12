@@ -449,6 +449,8 @@ def main():
     for a in new_alerts:
         append_csv(ALERTS_CSV, [a["id"], a["ticker"], a["ts"], f"{a['price']:.4f}", a["hits"]])
 
+send_discord("**TEST** — Discord webhook is working ✅", title="Test Alert")
+
     outcomes = process_followups()
     for o in outcomes:
         append_csv(OUTCOMES_CSV, [
