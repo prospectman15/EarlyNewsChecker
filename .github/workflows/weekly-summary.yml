@@ -2,18 +2,18 @@ name: weekly-summary
 
 on:
   schedule:
-    - cron: "0 14 * * MON"   # every Monday 14:00 UTC (~10:00 AM ET)
-  workflow_dispatch: {}       # manual "Run workflow" button
+    - cron: "0 14 * * MON"   # Mondays 14:00 UTC (~10:00 AM ET)
+  workflow_dispatch: {}
 
 jobs:
   summary:
     runs-on: ubuntu-latest
 
-    # read-only is fine (we don't push anything in this job)
+    # read is enough (we don't push in this job)
     permissions:
       contents: read
 
-    # Avoid overlap with the scan job that may be writing logs
+    # share the same repo-write lock so we never collide with the scan job
     concurrency:
       group: ${{ github.repository }}-repo-writes
       cancel-in-progress: false
@@ -37,8 +37,7 @@ jobs:
       - name: Quick syntax check
         run: python -m py_compile scanner.py
 
-      # Optional: also restore cached files in case they aren't committed yet
-      - name: Restore state & logs
+      - name: Restore state & logs (if not committed yet)
         uses: actions/cache@v4
         with:
           path: |
@@ -55,5 +54,5 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           MODE: weekly
-          SUMMARY_LOOKBACK_DAYS: "7"   # change if you want a different lookback
+          SUMMARY_LOOKBACK_DAYS: "7"
         run: python scanner.py
