@@ -1,14 +1,28 @@
 name: weekly-summary
+
 on:
   schedule:
-    - cron: "0 14 * * MON"   # Mondays at 14:00 UTC (~10:00 AM ET)
-  workflow_dispatch: {}
+    - cron: "0 14 * * MON"   # every Monday 14:00 UTC (~10:00 AM ET)
+  workflow_dispatch: {}       # manual "Run workflow" button
 
 jobs:
   summary:
     runs-on: ubuntu-latest
+
+    # read-only is fine (we don't push anything in this job)
+    permissions:
+      contents: read
+
+    # Avoid overlap with the scan job that may be writing logs
+    concurrency:
+      group: ${{ github.repository }}-repo-writes
+      cancel-in-progress: false
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -20,6 +34,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Quick syntax check
+        run: python -m py_compile scanner.py
+
+      # Optional: also restore cached files in case they aren't committed yet
       - name: Restore state & logs
         uses: actions/cache@v4
         with:
@@ -30,10 +48,12 @@ jobs:
           key: weekly-${{ github.run_id }}
           restore-keys: |
             weekly-
+            scan-
+            state-
 
       - name: Post weekly summary
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           MODE: weekly
-          SUMMARY_LOOKBACK_DAYS: 7
+          SUMMARY_LOOKBACK_DAYS: "7"   # change if you want a different lookback
         run: python scanner.py
