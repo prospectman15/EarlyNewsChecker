@@ -1,39 +1,61 @@
 name: early-event-scan
+
 on:
   schedule:
-    - cron: "*/2 * * * *"   # every 10 minutes
-  workflow_dispatch: {}       # run manually
+    - cron: "*/5 * * * *"    # every 5 minutes (UTC) — minimum reliable interval
+  workflow_dispatch: {}       # manual "Run workflow" button
+
 jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write         # lets us commit state/log files back
+
+    concurrency:
+      group: early-event-scan
+      cancel-in-progress: true
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: |
+
+      - name: Install deps
+        run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Restore state
-        id: state
+
+      - name: Quick syntax check
+        run: python -m py_compile scanner.py
+
+      - name: Restore state & logs
         uses: actions/cache@v4
         with:
-          path: state.json
-          key: state-${{ github.run_id }}
+          path: |
+            state.json
+            alerts.csv
+            outcomes.csv
+          key: scan-${{ github.run_id }}
           restore-keys: |
-            state-
+            scan-
+
+      - name: Write heartbeat (for visible proof)
+        run: |
+          echo "last_run_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > heartbeat.txt
+
       - name: Run scanner
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python scanner.py
-      - name: Save state & logs back to repo (fallback)
+
+      - name: Commit state & logs
         if: always()
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state.json alerts.csv outcomes.csv || true
-          git commit -m "Update state/logs" || true
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state.json alerts.csv outcomes.csv heartbeat.txt || true
+          git commit -m "scan: update state/logs [skip ci]" || true
           git push || true
-
