@@ -2,18 +2,16 @@ name: early-event-scan
 
 on:
   schedule:
-    - cron: "*/10 * * * *"     # every 10 minutes (UTC)
-  workflow_dispatch: {}         # manual "Run workflow" button
+    - cron: "*/10 * * * *"   # every 10 minutes (UTC)
+  workflow_dispatch: {}
 
 jobs:
   scan:
     runs-on: ubuntu-latest
 
-    # needed to push state/logs back to the repo
     permissions:
       contents: write
 
-    # serialize any repo writes across workflows to avoid collisions
     concurrency:
       group: ${{ github.repository }}-repo-writes
       cancel-in-progress: false
@@ -22,7 +20,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0        # full history so rebase works
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,22 +49,31 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
-          git add state.json alerts.csv outcomes.csv heartbeat.txt || true
+
+          # Stage changes first
+          git add -A || true
+
+          # Nothing to commit? Exit cleanly.
           if git diff --cached --quiet; then
             echo "Nothing to commit"
-          else
-            git commit -m "scan: update state/logs [skip ci]"
-            for i in 1 2 3; do
-              if git push; then
-                break
-              else
-                git pull --rebase && sleep 2
-              fi
-            done
+            exit 0
           fi
 
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state.json alerts.csv outcomes.csv heartbeat.txt || true
+          # Rebase with autostash to avoid conflicts
+          git pull --rebase --autostash || true
+
+          # Commit and push (retry a few times if another workflow pushed)
           git commit -m "scan: update state/logs [skip ci]" || true
-          git push || true
+          for i in 1 2 3; do
+            if git push; then
+              echo "Pushed successfully"
+              exit 0
+            else
+              git pull --rebase --autostash || true
+              sleep 2
+            fi
+          done
+
+          echo "Push failed after retries"
+          exit 1
+
