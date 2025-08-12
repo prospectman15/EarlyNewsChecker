@@ -1,0 +1,39 @@
+name: weekly-summary
+on:
+  schedule:
+    - cron: "0 14 * * MON"   # Mondays at 14:00 UTC (~10:00 AM ET)
+  workflow_dispatch: {}
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Restore state & logs
+        uses: actions/cache@v4
+        with:
+          path: |
+            state.json
+            alerts.csv
+            outcomes.csv
+          key: weekly-${{ github.run_id }}
+          restore-keys: |
+            weekly-
+
+      - name: Post weekly summary
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          MODE: weekly
+          SUMMARY_LOOKBACK_DAYS: 7
+        run: python scanner.py
