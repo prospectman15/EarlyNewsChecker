@@ -1,7 +1,7 @@
 name: early-event-scan
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes
+    - cron: "*/2 * * * *"   # every 10 minutes
   workflow_dispatch: {}       # run manually
 jobs:
   run:
