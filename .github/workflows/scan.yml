@@ -3,15 +3,17 @@ name: early-event-scan
 on:
   schedule:
     - cron: "*/10 * * * *"   # every 10 minutes (UTC)
-  workflow_dispatch: {}
+  workflow_dispatch: {}       # manual "Run workflow" button
 
 jobs:
   scan:
     runs-on: ubuntu-latest
 
+    # required to push heartbeat/state/log CSVs
     permissions:
       contents: write
 
+    # serialize any repo writes across workflows to avoid collisions
     concurrency:
       group: ${{ github.repository }}-repo-writes
       cancel-in-progress: false
@@ -35,6 +37,18 @@ jobs:
       - name: Quick syntax check
         run: python -m py_compile scanner.py
 
+      - name: Restore state & logs
+        uses: actions/cache@v4
+        with:
+          path: |
+            state.json
+            alerts.csv
+            outcomes.csv
+          key: scan-${{ github.run_id }}
+          restore-keys: |
+            scan-
+            state-
+
       - name: Write heartbeat (proof it ran)
         run: echo "last_run_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > heartbeat.txt
 
@@ -50,19 +64,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Stage changes first
+          # Stage first so rebase won't complain about unstaged changes
           git add -A || true
 
-          # Nothing to commit? Exit cleanly.
+          # Nothing to commit? exit cleanly
           if git diff --cached --quiet; then
             echo "Nothing to commit"
             exit 0
           fi
 
-          # Rebase with autostash to avoid conflicts
+          # Rebase with autostash to avoid conflicts with other workflows
           git pull --rebase --autostash || true
 
-          # Commit and push (retry a few times if another workflow pushed)
+          # Commit and push (retry in case another job just pushed)
           git commit -m "scan: update state/logs [skip ci]" || true
           for i in 1 2 3; do
             if git push; then
@@ -76,4 +90,3 @@ jobs:
 
           echo "Push failed after retries"
           exit 1
-
