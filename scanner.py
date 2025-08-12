@@ -1,29 +1,24 @@
 #!/usr/bin/env python3
 """
-Early Event Scanner (Discord + Price Tracking)
-- Scans Reddit search + subreddit RSS every 10 min (GitHub Actions)
-- Alerts when multiple crisis-keyword posts mention your tickers within window
-- Excludes mainstream media links (tries to catch pre-media chatter)
-- On alert, records price and schedules follow-ups at +60m and +24h
-- Logs to CSVs; maintains rolling "learning" metrics per ticker
+Early Event Scanner (Discord + Price Tracking + Weekly Summary)
+
+Modes:
+- Default (no MODE env): scan + alert + process price follow-ups
+- MODE=weekly: post a 7-day summary to Discord and exit
 
 ENV:
-  DISCORD_WEBHOOK_URL  (Discord webhook URL, set as GitHub Actions secret)
+  DISCORD_WEBHOOK_URL
+  MODE                       # optional: "weekly" to post weekly summary
+  SUMMARY_LOOKBACK_DAYS      # optional: default 7
 
-FILES (committed/cached between runs):
-  state.json           - cooldowns, pending followups, per-ticker metrics
-  alerts.csv           - alert events (append-only)
-  outcomes.csv         - follow-up results (append-only)
-
-Requires:
-  pip install requests yfinance
+Files:
+  state.json, alerts.csv, outcomes.csv
 """
 
-import os, re, json, time, html, hashlib, csv
+import os, re, json, time, html, hashlib, csv, statistics
 import requests
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Any, Tuple
-
 import yfinance as yf
 
 # ------------------ Settings ------------------
@@ -99,11 +94,9 @@ def save_state(state: Dict[str, Any]) -> None:
         json.dump(state,f)
 
 def ensure_csv_headers(path: str, headers: List[str]) -> None:
-    exists = os.path.exists(path)
-    if not exists:
+    if not os.path.exists(path):
         with open(path,"w",newline="",encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(headers)
+            csv.writer(f).writerow(headers)
 
 def append_csv(path: str, row: List[Any]) -> None:
     with open(path,"a",newline="",encoding="utf-8") as f:
@@ -130,31 +123,27 @@ def sig_of_post(p: Dict[str, Any]) -> str:
 # ------------------ Price utils ------------------
 
 def get_last_price(ticker: str) -> Tuple[float, str]:
-    """
-    Returns (price, source_note).
-    Tries 1m intraday; falls back to last close.
-    """
     try:
         df = yf.download(tickers=ticker, period="2d", interval="1m", progress=False, threads=False)
         if df is not None and len(df)>0:
-            price = float(df["Close"].dropna().iloc[-1])
-            return price, "1m"
+            return float(df["Close"].dropna().iloc[-1]), "1m"
     except Exception:
         pass
     try:
         df = yf.download(tickers=ticker, period="5d", interval="1d", progress=False, threads=False)
         if df is not None and len(df)>0:
-            price = float(df["Close"].dropna().iloc[-1])
-            return price, "1d"
+            return float(df["Close"].dropna().iloc[-1]), "1d"
     except Exception:
         pass
     return float("nan"), "na"
 
 # ------------------ Sources ------------------
 
+import requests
+
 def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
     url = f"https://www.reddit.com/search.json?q={requests.utils.quote(query)}&sort=new&limit={limit}&t=hour"
-    headers = {"User-Agent":"early-event-scanner/0.2 by github-actions"}
+    headers = {"User-Agent":"early-event-scanner/0.3 by github-actions"}
     try:
         r = requests.get(url, headers=headers, timeout=20)
         if r.status_code != 200:
@@ -194,10 +183,9 @@ def fetch_rss(url: str) -> List[Dict[str, Any]]:
     except Exception:
         return []
 
-# ------------------ Core scan + tracking ------------------
+# ------------------ Scan + tracking (same as before) ------------------
 
 def scan_and_alert() -> List[Dict[str, Any]]:
-    """Returns list of newly-created alerts (for downstream logging)."""
     state = load_state()
     t_now = now_utc()
     window_start = t_now - timedelta(minutes=MULTI_POST_WINDOW_MIN)
@@ -248,8 +236,8 @@ def scan_and_alert() -> List[Dict[str, Any]]:
 
     new_alerts=[]
     state.setdefault("cooldowns", {})
-    state.setdefault("pending", [])     # list of followups: {id,ticker,alert_ts,alert_px,when,label}
-    state.setdefault("metrics", {})     # per-ticker: {count, win_count, avg_abs_move}
+    state.setdefault("pending", [])
+    state.setdefault("metrics", {})
 
     for ticker, posts in by_ticker.items():
         posts = [p for p in posts if p["created"] >= window_start]
@@ -261,10 +249,8 @@ def scan_and_alert() -> List[Dict[str, Any]]:
                           if last_ts else 1e9 )
         if minutes_since < COOLDOWN_MIN: continue
 
-        # Get price now
         alert_px, px_src = get_last_price(ticker)
 
-        # Build message
         top_lines=[]
         for p in posts[:3]:
             ts = p["created"].strftime("%H:%M UTC")
@@ -276,7 +262,6 @@ def scan_and_alert() -> List[Dict[str, Any]]:
             + "\n".join(top_lines) + ("\nLinks: " + links if links else "")
         )
 
-        # Append quick metrics if exist
         m = state["metrics"].get(ticker)
         if m and m.get("count",0) >= 5:
             win_rate = (m.get("win_count",0)/max(1,m["count"])) * 100
@@ -284,14 +269,9 @@ def scan_and_alert() -> List[Dict[str, Any]]:
             message += f"\nHistory: {win_rate:.0f}% win, avg |Δ|={avg_move:.2f}% (n={m['count']})"
 
         send_discord(message, title="Early Event Scanner")
-
-        # Register cooldown
         state["cooldowns"][ticker] = int(t_now.timestamp())
 
-        # Create an alert ID
         aid = f"{ticker}-{int(t_now.timestamp())}"
-
-        # Schedule follow-ups
         t60  = int((t_now + timedelta(minutes=60)).timestamp())
         t24h = int((t_now + timedelta(hours=24)).timestamp())
         state["pending"].extend([
@@ -301,14 +281,12 @@ def scan_and_alert() -> List[Dict[str, Any]]:
              "due_ts": t24h, "label": "t+24h",  "done": False},
         ])
 
-        # Return for CSV logging
         new_alerts.append({"id": aid, "ticker": ticker, "ts": t_now.isoformat(), "price": alert_px, "hits": len(posts)})
 
     save_state(state)
     return new_alerts
 
 def process_followups() -> List[Dict[str, Any]]:
-    """Check pending follow-ups; when due, compute return and log outcome."""
     state = load_state()
     t_now = int(now_utc().timestamp())
     state.setdefault("pending", [])
@@ -317,40 +295,34 @@ def process_followups() -> List[Dict[str, Any]]:
     results=[]
     new_pending=[]
     for item in state["pending"]:
-        if item.get("done"):  # shouldn't happen, but skip
+        if item.get("done"):
             continue
         if t_now >= int(item["due_ts"]):
             ticker   = item["ticker"]
             alert_px = float(item["alert_px"])
             cur_px, src = get_last_price(ticker)
-            if not (cur_px and cur_px==cur_px):  # NaN guard
-                # try again next run
-                new_pending.append(item)
+            if not (cur_px and cur_px==cur_px):
+                new_pending.append(item)  # try next run
                 continue
             ret_pct = ((cur_px/alert_px)-1.0)*100.0
             label   = item["label"]
             ts_iso  = datetime.fromtimestamp(item["due_ts"], tz=timezone.utc).isoformat()
 
-            # Log result row
             results.append({
                 "id": item["id"], "ticker": ticker, "label": label,
                 "due_ts": ts_iso, "alert_px": alert_px, "cur_px": cur_px, "ret_pct": ret_pct
             })
 
-            # Update simple "learning" metrics on 24h only
             if label == "t+24h":
                 m = state["metrics"].get(ticker, {"count":0,"win_count":0,"avg_abs_move":0.0})
                 m["count"] = int(m.get("count",0)) + 1
-                # "Win" = absolute move >= 5% (you can tune)
                 win = 1 if abs(ret_pct) >= 5.0 else 0
                 m["win_count"] = int(m.get("win_count",0)) + win
-                # Update running average of absolute move
                 prev_n = m["count"] - 1
                 prev_avg = float(m.get("avg_abs_move",0.0))
                 m["avg_abs_move"] = ((prev_avg*prev_n) + abs(ret_pct)) / m["count"]
                 state["metrics"][ticker] = m
 
-                # Optional: post a small summary to Discord
                 summary = (
                     f"**{ticker}** follow-up ({label}): {ret_pct:+.2f}% "
                     f"(alert ${alert_px:.2f} → now ${cur_px:.2f})\n"
@@ -360,34 +332,123 @@ def process_followups() -> List[Dict[str, Any]]:
                 send_discord(summary, title="Price Follow-up")
 
             elif label == "t+60m":
-                # Optional: also post the 60m result
                 msg = f"**{ticker}** follow-up ({label}): {ret_pct:+.2f}% (alert ${alert_px:.2f} → now ${cur_px:.2f})"
                 send_discord(msg, title="Price Follow-up")
 
-            # mark done (we won't carry it forward)
             item["done"] = True
-            # do not append to new_pending
         else:
-            # not due yet, keep it
             new_pending.append(item)
 
     state["pending"] = new_pending
     save_state(state)
     return results
 
+# ------------------ Weekly summary ------------------
+
+def parse_iso(s: str) -> datetime:
+    try:
+        return datetime.fromisoformat(s.replace("Z","")).replace(tzinfo=timezone.utc) if "Z" in s else datetime.fromisoformat(s)
+    except Exception:
+        return now_utc()
+
+def post_weekly_summary():
+    lookback_days = int(os.getenv("SUMMARY_LOOKBACK_DAYS", "7"))
+    cutoff = now_utc() - timedelta(days=lookback_days)
+
+    # Load alerts
+    alerts = []
+    if os.path.exists(ALERTS_CSV):
+        with open(ALERTS_CSV, newline="", encoding="utf-8") as f:
+            r = csv.DictReader(f)
+            for row in r:
+                try:
+                    ts = parse_iso(row["alert_iso"])
+                except Exception:
+                    continue
+                if ts >= cutoff:
+                    alerts.append({"ticker": row["ticker"], "ts": ts})
+
+    # Load 24h outcomes
+    results = []
+    if os.path.exists(OUTCOMES_CSV):
+        with open(OUTCOMES_CSV, newline="", encoding="utf-8") as f:
+            r = csv.DictReader(f)
+            for row in r:
+                if row.get("label") != "t+24h":
+                    continue
+                try:
+                    ts = parse_iso(row["due_iso"])
+                except Exception:
+                    continue
+                if ts >= cutoff:
+                    try:
+                        ret = float(row["ret_pct"])
+                    except Exception:
+                        continue
+                    results.append({"ticker": row["ticker"], "ret": ret})
+
+    # Aggregate
+    total_alerts = len(alerts)
+    by_ticker_alerts: Dict[str,int] = {}
+    for a in alerts: by_ticker_alerts[a["ticker"]] = by_ticker_alerts.get(a["ticker"],0)+1
+
+    by_ticker_returns: Dict[str, List[float]] = {}
+    for rrow in results:
+        by_ticker_returns.setdefault(rrow["ticker"], []).append(rrow["ret"])
+
+    # Build lines
+    lines = [f"**Weekly Summary (last {lookback_days} days)**"]
+    lines.append(f"Total alerts: {total_alerts}")
+
+    if not by_ticker_alerts and not by_ticker_returns:
+        lines.append("_No data yet. Come back next week._")
+        send_discord("\n".join(lines), title="Weekly Summary")
+        return
+
+    # Per-ticker stats
+    lines.append("\n**Per-ticker:**")
+    tickers = sorted(set(list(by_ticker_alerts.keys()) + list(by_ticker_returns.keys())))
+    for t in tickers:
+        a = by_ticker_alerts.get(t, 0)
+        rets = by_ticker_returns.get(t, [])
+        if rets:
+            win_rate = 100.0 * sum(1 for x in rets if abs(x) >= 5.0) / len(rets)
+            avg_abs = statistics.mean(abs(x) for x in rets)
+            avg_ret = statistics.mean(rets)
+            lines.append(f"- {t}: alerts={a}, 24h n={len(rets)}, win%={win_rate:.0f}%, avg|Δ|={avg_abs:.2f}%, avg={avg_ret:+.2f}%")
+        else:
+            lines.append(f"- {t}: alerts={a}, 24h n=0")
+
+    # Top movers
+    all_moves = [(t, v) for t, arr in by_ticker_returns.items() for v in arr]
+    if all_moves:
+        best = sorted(all_moves, key=lambda x: x[1], reverse=True)[:3]
+        worst = sorted(all_moves, key=lambda x: x[1])[:3]
+        lines.append("\n**Top movers (24h):**")
+        lines.append("Best: " + "; ".join([f"{t} {v:+.2f}%" for t, v in best]))
+        lines.append("Worst: " + "; ".join([f"{t} {v:+.2f}%" for t, v in worst]))
+
+    send_discord("\n".join(lines), title="Weekly Summary")
+
 # ------------------ Main ------------------
 
 def main():
-    # Ensure CSV headers exist
+    mode = os.getenv("MODE","").strip().lower()
+
+    # Ensure CSV headers exist (for both modes)
     ensure_csv_headers(ALERTS_CSV, ["id","ticker","alert_iso","alert_price","hits"])
     ensure_csv_headers(OUTCOMES_CSV, ["id","ticker","label","due_iso","alert_price","cur_price","ret_pct"])
 
-    # 1) Run the scanner and send any new alerts
+    if mode == "weekly":
+        post_weekly_summary()
+        print("Weekly summary posted.")
+        return
+
+    # Normal scan + follow-ups
     new_alerts = scan_and_alert()
     for a in new_alerts:
         append_csv(ALERTS_CSV, [a["id"], a["ticker"], a["ts"], f"{a['price']:.4f}", a["hits"]])
 
-    # 2) Process due follow-ups (60m/24h), send summaries, and log outcomes
     outcomes = process_followups()
     for o in outcomes:
         append_csv(OUTCOMES_CSV, [
