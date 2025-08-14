@@ -1,2 +1,12 @@
 ticker,iso_time,window_min,y,notes
-CRWV,2025-08-12T20:10:00Z,120,1,after-hours dump on earnings; want more sensitivity here
+CRWV,2025-08-12T20:10:00Z,120,1,AH earnings dump that led to sharp fall
+AMD,2025-08-13T15:05:00Z,60,1,Upgrade/PT chatter that preceded intraday spike
+BA,2025-08-05T14:20:00Z,60,1,Emergency landing reports
+SRFM,2025-08-08T13:55:00Z,60,1,Guidance reduction chatter
+NVDA,2025-08-07T14:45:00Z,60,1,Partnership PR primary source
+
+AMD,2025-08-06T17:30:00Z,60,0,General hype with no movement
+AAL,2025-08-06T16:00:00Z,60,0,Rumor only; no follow-through
+CRWD,2025-08-06T15:30:00Z,60,0,Speculative FUD; opposite/flat move
+NVDA,2025-08-09T15:02:00Z,60,0,Minor filing; no meaningful move
+BA,2025-08-09T16:24:00Z,60,0,Unverified claim; no dislocation
