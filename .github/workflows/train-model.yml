@@ -1,13 +1,23 @@
 name: train-model
 
 on:
+  # Retrain whenever new labels/spikes/signals/outcomes are committed
   push:
     paths:
-      - 'dataset/**'
+      - 'dataset/labels.csv'
+      - 'dataset/spikes.csv'
+      - 'dataset/signals.csv'
       - 'outcomes.csv'
+      # Optional: retrain if these change
+      - 'train.py'
+      - 'feature_utils.py'
+
+  # Midday + after-close refresh (times are UTC)
   schedule:
-    - cron: "45 14 * * MON-FRI"   # ~10:45am ET (midday refresh)
-    - cron: "30 21 * * MON-FRI"   # ~5:30pm ET (after close)
+    - cron: '45 14 * * MON-FRI'   # ~10:45am ET
+    - cron: '30 21 * * MON-FRI'   # ~5:30pm ET
+
+  # Manual "Run workflow" button
   workflow_dispatch: {}
 
 jobs:
@@ -15,17 +25,24 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
+    # prevent overlapping pushes to /model
     concurrency:
-      group: ${{ github.repository }}-repo-writes
+      group: ${{ github.repository }}-train-model
       cancel-in-progress: false
+
+    # Optional: let the metrics-post step check for a secret
+    env:
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install deps
         run: |
@@ -35,10 +52,50 @@ jobs:
       - name: Train model
         run: python train.py
 
+      - name: Show what was produced
+        run: |
+          echo "=== Repository tree ==="
+          ls -al
+          echo "=== Dataset ==="
+          ls -al dataset || true
+          echo "=== Model dir ==="
+          ls -al model || true
+
+      - name: Upload model artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-files
+          path: |
+            model/model.pkl
+            model/metrics.json
+          if-no-files-found: ignore
+
       - name: Commit model & metrics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add model/model.pkl model/metrics.json || true
-          git commit -m "model: update" || true
+          # Force-add in case of .gitignore
+          git add -f model/model.pkl model/metrics.json || true
+          git commit -m "model: update [skip ci]" || echo "Nothing to commit"
           git push || true
+
+      - name: Post metrics to Discord (optional)
+        if: ${{ env.DISCORD_WEBHOOK_URL != '' }}
+        run: |
+          python - << 'PY'
+          import json, os, requests
+          p = 'model/metrics.json'
+          if not os.path.exists(p):
+              print('No metrics.json found; skipping Discord post.'); raise SystemExit(0)
+          m = json.load(open(p))
+          desc = (
+            f"AUC: {m.get('auc')}\n"
+            f"Mode: {m.get('mode','')}\n"
+            f"Best threshold: {m.get('best_threshold')}\n"
+            f"Precision: {m.get('precision_at_best')}, Recall: {m.get('recall_at_best')}\n"
+            f"F1: {m.get('f1_at_best')}\n"
+            f"Rows: {m.get('n_rows')}, Pos rate: {m.get('pos_rate')}"
+          )
+          requests.post(os.environ['DISCORD_WEBHOOK_URL'], json={"embeds":[{"title":"Model updated", "description":desc}]}, timeout=15)
+          PY
