@@ -1,38 +1,50 @@
 #!/usr/bin/env python3
 """
-Early Event Scanner (Discord) — Market-Hours + Cluster/Consensus + Learning
+Early Event Scanner (Discord)
 
-What it does now:
-- Only alerts during regular US market hours (9:30–16:00 ET, Mon–Fri)
-- News alert if: (A) >=2 posts within 60m window, OR (B) 1 Reddit post with high consensus (score & comments)
-- Earnings/positive/crisis keywords included
-- Price Spike Sentinel (up & down) during market hours
-- Follow-ups (+60m / +24h) only during market hours
-- Logs signal features to dataset/signals.csv for training
-- Optional model gate (loads model/model.pkl if present) to require high score before pinging
+What it does:
+- MARKET HOURS ONLY (US RTH 9:30–16:00 ET, Mon–Fri) for alerts & follow-ups
+- NEWS/EARNINGS ALERT when:
+    A) >= REQUIRED_MATCHES posts in last CLUSTER_WINDOW_MIN minutes, OR
+    B) one "consensus" Reddit post (min score/comments)
+  Filters mainstream media links; allows IR/SEC/PR early sources
+- PRICE SPIKE ALERT when intraday move/volume crosses thresholds
+- FOLLOW-UPS at +60m and +24h (deferred until market open)
+- WEEKLY SUMMARY if MODE=weekly
+- TEST webhook if MODE=test
+- OPTIONAL ML GATE: logs features to dataset/signals.csv and, if model/model.pkl exists,
+  requires score >= learned threshold in addition to the rules
 
 ENV (optional overrides):
   DISCORD_WEBHOOK_URL
-  MODE                       # "", "weekly", "test"
-  SUMMARY_LOOKBACK_DAYS      # default 7
-  REQUIRED_MATCHES           # default 2
-  CLUSTER_WINDOW_MIN         # default 60
-  SINGLE_POST_MIN_SCORE      # default 50
-  SINGLE_POST_MIN_COMMENTS   # default 20
-  MODEL_THRESHOLD            # default 0.60 (used if model bundle lacks its own threshold)
+  MODE                        # "", "weekly", "test"
+  SUMMARY_LOOKBACK_DAYS       # default 7
+  REQUIRED_MATCHES            # default 2
+  CLUSTER_WINDOW_MIN          # default 60
+  SINGLE_POST_MIN_SCORE       # default 50
+  SINGLE_POST_MIN_COMMENTS    # default 20
+  MODEL_THRESHOLD             # default 0.60 (used if model bundle lacks its own)
+  PRICE_SPIKES_ENABLED        # "1" (default) or "0" to disable spike alerts
 """
 
-import os, re, json, time, html, hashlib, csv, statistics
-from datetime import datetime, timezone, timedelta, time as dtime
+import os
+import re
+import csv
+import json
+import time
+import html
+import hashlib
+import statistics
 from typing import Dict, List, Any, Tuple
+from datetime import datetime, timezone, timedelta, time as dtime
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import requests
 import yfinance as yf
 
-# ---------- Watchlist ----------
-# (Include both CRWV and CRWD to be safe; if a symbol doesn't exist, yfinance will just return NaN)
+# --------------------------- Watchlist ---------------------------
+
 WATCH_TICKERS: Dict[str, List[str]] = {
     "AMD":  ["amd", "advanced micro devices"],
     "NVDA": ["nvidia", "nvda"],
@@ -45,7 +57,8 @@ WATCH_TICKERS: Dict[str, List[str]] = {
     "AAL":  ["american airlines", "aal"],
 }
 
-# ---------- Keywords ----------
+# --------------------------- Keywords ---------------------------
+
 POSITIVE_WORDS: List[str] = [
     "upgrade","upgraded","raises guidance","raised guidance",
     "raise price target","price target","initiated coverage",
@@ -62,7 +75,8 @@ EARNINGS_WORDS: List[str] = [
     "revenue", "margin", "outlook", "forecast", "loss", "profit",
 ]
 
-# ---------- Sources / filters ----------
+# --------------------- Allowed / Blocked Sources ---------------------
+
 MEDIA_BLACKLIST: List[str] = [
     "bloomberg.com","reuters.com","wsj.com","nytimes.com","cnn.com",
     "cnbc.com","apnews.com","foxnews.com","marketwatch.com",
@@ -71,7 +85,7 @@ MEDIA_BLACKLIST: List[str] = [
     "washingtonpost.com","usatoday.com","nbcnews.com","abcnews.go.com",
     "bbc.com","barrons.com","coindesk.com","cointelegraph.com",
 ]
-MEDIA_ALLOW: List[str] = ["sec.gov","businesswire.com","prnewswire.com"]  # IR/SEC/PR are allowed
+MEDIA_ALLOW: List[str] = ["sec.gov","businesswire.com","prnewswire.com"]  # IR/SEC/PR allowed
 
 RSS_SOURCES: List[str] = [
     "https://www.reddit.com/r/StockMarket/.rss",
@@ -83,13 +97,14 @@ RSS_SOURCES: List[str] = [
     "https://www.reddit.com/r/wallstreetbets/.rss",
 ]
 
-# ---------- Tunables (env overrides) ----------
+# ------------------------ Tunables (ENV) ------------------------
+
 REQUIRED_MATCHES       = int(os.getenv("REQUIRED_MATCHES", "2"))
 CLUSTER_WINDOW_MIN     = int(os.getenv("CLUSTER_WINDOW_MIN", "60"))
 SINGLE_POST_MIN_SCORE  = int(os.getenv("SINGLE_POST_MIN_SCORE", "50"))
 SINGLE_POST_MIN_COMMS  = int(os.getenv("SINGLE_POST_MIN_COMMENTS", "20"))
 
-COOLDOWN_MIN_NEWS = 90  # minutes per ticker
+COOLDOWN_MIN_NEWS = 90  # minutes per-ticker
 
 PRICE_SPIKE = {
     "from_open_abs_pct": 4.0,      # |last/open - 1| >= 4%
@@ -98,25 +113,26 @@ PRICE_SPIKE = {
     "big_move_abs_pct": 5.0,       # bypass volume if >= 5%
     "cooldown_min": 45,
 }
+PRICE_SPIKES_ENABLED = os.getenv("PRICE_SPIKES_ENABLED", "1") == "1"
 
 STATE_FILE   = "state.json"
 ALERTS_CSV   = "alerts.csv"
 OUTCOMES_CSV = "outcomes.csv"
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
 
-# ---------- Learning (optional) ----------
-# If you added feature_utils.py + train.py, these hooks log features & gate on model score
+# ---------------------- Learning (optional) ----------------------
+
 MODEL_PATH = "model/model.pkl"
 MODEL_THRESHOLD = float(os.getenv("MODEL_THRESHOLD", "0.60"))
 DATASET_DIR = "dataset"
 SIGNALS_CSV = os.path.join(DATASET_DIR, "signals.csv")
+
 _loaded_model = None
 _have_features = False
 try:
-    from feature_utils import build_features, MODEL_FEATURES  # provided in previous message
+    from feature_utils import build_features, MODEL_FEATURES  # optional module
     _have_features = True
 except Exception:
-    # run fine without learning; just skip feature logging/model gate
     pass
 
 def load_model():
@@ -151,19 +167,18 @@ def log_signal_row(sig_id, ticker, ts_iso, feats_vec, titles, links, score_max, 
             score_max, comm_max, hits
         ])
 
-# ---------- Time / session ----------
+# --------------------- Time / general utils ---------------------
+
 ET = ZoneInfo("America/New_York")
+
 def is_market_open(dt_utc: datetime | None = None) -> bool:
     if dt_utc is None:
         dt_utc = datetime.now(timezone.utc)
     et = dt_utc.astimezone(ET)
     if et.weekday() >= 5:  # Sat/Sun
         return False
-    start = dtime(9, 30)
-    end   = dtime(16, 0)
-    return start <= et.time() <= end
+    return dtime(9, 30) <= et.time() <= dtime(16, 0)
 
-# ---------- Utils ----------
 def clean_text(s: str) -> str:
     return re.sub(r"\s+"," ", html.unescape((s or "")).strip()).lower()
 
@@ -215,7 +230,15 @@ def sig_of_post(p: Dict[str, Any]) -> str:
     raw = f"{p.get('title','')}|{p.get('url','')}"
     return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
-# ---------- Price utils ----------
+# ------------------------ Price utilities ------------------------
+
+def get_intraday_df(ticker: str):
+    try:
+        df = yf.download(tickers=ticker, period="2d", interval="1m", progress=False, threads=False)
+        return df if df is not None and len(df)>0 else None
+    except Exception:
+        return None
+
 def get_last_price(ticker: str) -> Tuple[float,str]:
     try:
         df = yf.download(tickers=ticker, period="2d", interval="1m", progress=False, threads=False)
@@ -231,13 +254,6 @@ def get_last_price(ticker: str) -> Tuple[float,str]:
         pass
     return float("nan"), "na"
 
-def get_intraday_df(ticker: str):
-    try:
-        df = yf.download(tickers=ticker, period="2d", interval="1m", progress=False, threads=False)
-        return df if df is not None and len(df)>0 else None
-    except Exception:
-        return None
-
 def get_prev_close(ticker: str) -> float:
     try:
         df = yf.download(tickers=ticker, period="5d", interval="1d", progress=False, threads=False)
@@ -249,10 +265,11 @@ def get_prev_close(ticker: str) -> float:
         pass
     return float("nan")
 
-# ---------- Sources ----------
+# ------------------------- Sources (web) -------------------------
+
 def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
     url = f"https://www.reddit.com/search.json?q={requests.utils.quote(query)}&sort=new&limit={limit}&t=day"
-    headers = {"User-Agent":"early-event-scanner/0.8 by github-actions"}
+    headers = {"User-Agent":"early-event-scanner/0.9 by github-actions"}
     try:
         r = requests.get(url, headers=headers, timeout=20)
         if r.status_code != 200: return []
@@ -300,7 +317,8 @@ def fetch_rss(url: str) -> List[Dict[str, Any]]:
     except Exception:
         return []
 
-# ---------- News scanning ----------
+# ----------------------- News-based scanning -----------------------
+
 def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     if not is_market_open():
         return []
@@ -327,7 +345,7 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                 p["_created"] = created
                 candidates.append(p)
 
-    # RSS (no Reddit score/comment data)
+    # RSS feeds (no reddit scores/comments)
     for feed in RSS_SOURCES:
         items = fetch_rss(feed)
         for it in items:
@@ -353,7 +371,7 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if sig in seen: continue
         seen.add(sig); uniq.append(c)
 
-    # Group and apply cluster/consensus + model gate
+    # Group by ticker and apply rules (+ optional model gate)
     new_alerts=[]
     state.setdefault("cooldowns_news", {})
     state.setdefault("pending", [])
@@ -364,18 +382,14 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         by_ticker.setdefault(c["_ticker"], []).append(c)
 
     mdl = load_model()
-    thr = None
-    if mdl:
-        thr = float(mdl.get("default_threshold", MODEL_THRESHOLD))
+    learned_thr = float(mdl.get("default_threshold", MODEL_THRESHOLD)) if mdl else None
 
     for ticker, posts in by_ticker.items():
         posts = [p for p in posts if p["_created"] >= window_start]
         if not posts: continue
         posts.sort(key=lambda x: x["_created"], reverse=True)
 
-        # Rule A: >= REQUIRED_MATCHES within window
         cluster_ok = len(posts) >= REQUIRED_MATCHES
-        # Rule B: OR a single Reddit post with high consensus
         consensus_ok = any(
             (p.get("source") == "reddit_search") and
             (int(p.get("score",0)) >= SINGLE_POST_MIN_SCORE) and
@@ -385,14 +399,12 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not (cluster_ok or consensus_ok):
             continue
 
-        # Cooldown per ticker
         now_ts = int(datetime.now(timezone.utc).timestamp())
         last_ts = state["cooldowns_news"].get(ticker, 0)
         minutes_since = ((now_ts - last_ts) / 60.0) if last_ts else 1e9
         if minutes_since < COOLDOWN_MIN_NEWS:
             continue
 
-        # Build features & (optionally) model score
         top = posts[:min(5, len(posts))]
         titles = [p['title'] for p in top]
         links  = [(p.get('url') or "") for p in top]
@@ -406,7 +418,7 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                "\n".join([f"• {p['_created'].strftime('%H:%M UTC')} — {p['title']}" for p in top]) +
                (("\nLinks: " + " | ".join(links)) if links else ""))
 
-        # Log signal for training (always log, even if we end up skipping on model)
+        # Log signal for training
         sig_id = f"SIGNAL-{ticker}-{now_ts}"
         if _have_features:
             feats_vec, _ = build_features(titles, links, scores, comms, hits_in_window=len(posts))
@@ -415,19 +427,18 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         else:
             feats_vec = None
 
-        # Model gate
+        # Model gate if model present
         if mdl and feats_vec is not None:
             try:
                 prob = float(mdl["clf"].predict_proba([feats_vec])[0][1])
-                use_thr = thr if thr is not None else MODEL_THRESHOLD
+                use_thr = learned_thr if learned_thr is not None else MODEL_THRESHOLD
                 msg += f"\nModel score: {prob:.2f} (thr {use_thr:.2f})"
                 if prob < use_thr:
-                    # skip notify; not strong enough
                     continue
             except Exception:
                 pass
 
-        # Passed rules (and model if present): send & schedule follow-ups
+        # Send + schedule follow-ups
         send_discord(msg, title="Early Event Scanner")
         state["cooldowns_news"][ticker] = now_ts
 
@@ -445,40 +456,73 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                            "price": spot, "hits": len(posts)})
     return new_alerts
 
-# ---------- Price Spike Sentinel (market hours only) ----------
+# ----------------------- Price spike scanning -----------------------
+
 def price_spike_alert(ticker: str, state: Dict[str, Any]) -> Dict[str, Any] | None:
+    # Only during market hours
     if not is_market_open():
         return None
+
     df = get_intraday_df(ticker)
-    if df is None or len(df) < 15: return None
+    if df is None or len(df) < 15:
+        return None
+
+    # yfinance sometimes returns tz-aware index
     try:
         if getattr(df.index, "tz", None) is not None:
             df = df.tz_convert(None)
     except Exception:
         pass
+
+    # today's bars only
     today = df.index.date[-1]
     tdf = df[df.index.date == today]
-    if tdf.empty or len(tdf) < 12: return None
+    if tdf is None or tdf.empty or len(tdf) < 12:
+        return None
 
-    last = float(tdf["Close"].iloc[-1])
-    day_open = float(tdf["Open"].iloc[0])
-    from_open = (last/day_open - 1.0) * 100.0
+    def _f(x, default=float("nan")):
+        try:
+            v = float(x)
+            return v if v == v else default
+        except Exception:
+            return default
 
-    ten_idx = max(0, len(tdf)-11)
-    ten_pct = (tdf["Close"].iloc[-1]/tdf["Close"].iloc[ten_idx] - 1.0) * 100.0
+    last = _f(tdf["Close"].iloc[-1])
+    day_open = _f(tdf["Open"].iloc[0])
+    if not (last == last and day_open == day_open) or day_open == 0.0:
+        return None
 
-    vol10 = tdf["Volume"].tail(10).sum() / 10.0
-    avg_per_min = max(1.0, tdf["Volume"].mean())
-    vol_mult = vol10 / avg_per_min
+    from_open = (last / day_open - 1.0) * 100.0
+
+    ten_idx = max(0, len(tdf) - 11)
+    base_close = _f(tdf["Close"].iloc[ten_idx])
+    if not (base_close == base_close) or base_close == 0.0:
+        return None
+    ten_pct = (last / base_close - 1.0) * 100.0
+
+    vol_series = tdf.get("Volume")
+    if vol_series is None:
+        return None
+    vol_tail = vol_series.tail(10).fillna(0)
+    n_tail = max(1, len(vol_tail))
+    vol10 = _f(vol_tail.sum()) / n_tail
+
+    avg_per_min = _f(vol_series.fillna(0).mean())
+    if not (avg_per_min == avg_per_min) or avg_per_min <= 0:
+        avg_per_min = 1.0
+    vol_mult = vol10 / max(1.0, avg_per_min)
 
     prev_close = get_prev_close(ticker)
-    from_prev_close = ((last/prev_close) - 1.0) * 100.0 if prev_close == prev_close else 0.0
+    from_prev_close = ((last / prev_close) - 1.0) * 100.0 if (prev_close == prev_close and prev_close != 0.0) else 0.0
 
     big_move = abs(from_open) >= PRICE_SPIKE["big_move_abs_pct"] or abs(from_prev_close) >= PRICE_SPIKE["big_move_abs_pct"]
     base_move = (abs(from_open) >= PRICE_SPIKE["from_open_abs_pct"] or abs(ten_pct) >= PRICE_SPIKE["ten_min_abs_pct"])
-    vol_ok = vol_mult >= PRICE_SPIKE["volume_mult"]
-    if not (big_move or (base_move and vol_ok)): return None
+    vol_ok = (vol_mult >= PRICE_SPIKE["volume_mult"])
 
+    if not (big_move or (base_move and vol_ok)):
+        return None
+
+    # Cooldown per ticker
     state.setdefault("cooldowns_price", {})
     last_ts = state["cooldowns_price"].get(ticker, 0)
     if last_ts:
@@ -487,25 +531,35 @@ def price_spike_alert(ticker: str, state: Dict[str, Any]) -> Dict[str, Any] | No
             return None
     state["cooldowns_price"][ticker] = int(datetime.now(timezone.utc).timestamp())
 
-    direction = "UP" if (from_open >= 0) else "DOWN"
     return {
-        "ticker": ticker, "last": last, "from_open": from_open,
-        "from_prev_close": from_prev_close, "ten_pct": ten_pct,
-        "vol_mult": vol_mult, "direction": direction
+        "ticker": ticker,
+        "last": last,
+        "from_open": from_open,
+        "from_prev_close": from_prev_close,
+        "ten_pct": ten_pct,
+        "vol_mult": vol_mult,
+        "direction": "UP" if (from_open >= 0) else "DOWN",
     }
 
 def scan_price_spikes(state: Dict[str, Any]) -> List[Dict[str, Any]]:
-    if not is_market_open():
+    if not is_market_open() or not PRICE_SPIKES_ENABLED:
         return []
+    out = []
     t_now = datetime.now(timezone.utc)
-    out=[]
     for ticker in WATCH_TICKERS.keys():
-        a = price_spike_alert(ticker, state)
-        if not a: continue
-        msg = (f"**{ticker}** — *price spike* **{a['direction']}**\n"
-               f"From open: {a['from_open']:+.2f}% | From prev close: {a['from_prev_close']:+.2f}% | "
-               f"Last 10m: {a['ten_pct']:+.2f}% | Vol ≈ {a['vol_mult']:.1f}× avg\n"
-               f"Spot: ${a['last']:.2f}")
+        try:
+            a = price_spike_alert(ticker, state)
+        except Exception as e:
+            print(f"[price_spike_alert] {ticker} error: {e}")
+            a = None
+        if not a:
+            continue
+        msg = (
+            f"**{ticker}** — *price spike* **{a['direction']}**\n"
+            f"From open: {a['from_open']:+.2f}% | From prev close: {a['from_prev_close']:+.2f}% | "
+            f"Last 10m: {a['ten_pct']:+.2f}% | Vol ≈ {a['vol_mult']:.1f}× avg\n"
+            f"Spot: ${a['last']:.2f}"
+        )
         send_discord(msg, title="Price Spike")
 
         aid = f"PRC-{ticker}-{int(t_now.timestamp())}"
@@ -520,12 +574,13 @@ def scan_price_spikes(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         out.append({"id": aid, "ticker": ticker, "ts": t_now.isoformat(), "price": a["last"], "hits": -1})
     return out
 
-# ---------- Follow-ups (market hours only) ----------
+# --------------------------- Follow-ups ---------------------------
+
 def process_followups() -> List[Dict[str, Any]]:
     if not is_market_open():
         return []
 
-    # load state
+    # Load state
     state = {}
     if os.path.exists(STATE_FILE):
         try: state = json.load(open(STATE_FILE,"r",encoding="utf-8"))
@@ -577,7 +632,8 @@ def process_followups() -> List[Dict[str, Any]]:
     with open(STATE_FILE,"w",encoding="utf-8") as f: json.dump(state,f)
     return results
 
-# ---------- Weekly summary ----------
+# ------------------------- Weekly summary -------------------------
+
 def parse_iso(s: str) -> datetime:
     try:
         return datetime.fromisoformat(s.replace("Z","")).replace(tzinfo=timezone.utc) if "Z" in s else datetime.fromisoformat(s)
@@ -645,7 +701,8 @@ def post_weekly_summary():
         lines.append("Worst: " + "; ".join([f"{t} {v:+.2f}%" for t, v in worst]))
     send_discord("\n".join(lines), title="Weekly Summary")
 
-# ---------- Main ----------
+# ------------------------------ Main ------------------------------
+
 def main():
     mode = os.getenv("MODE","").strip().lower()
 
@@ -658,7 +715,7 @@ def main():
     if mode == "test":
         send_discord("**TEST** — webhook is working ✅", title="Test Alert"); print("Sent test message."); return
 
-    # Hard gate: skip everything if the market is closed
+    # Hard gate: skip scan if market is closed
     if not is_market_open():
         print("Market closed — skipping scan and follow-ups.")
         return
@@ -670,20 +727,20 @@ def main():
         except Exception: state = {}
     state.setdefault("pending", []); state.setdefault("metrics", {})
 
-    # 1) News-based alerts (cluster/consensus + optional model gate)
+    # 1) News-based alerts
     news_alerts = scan_news(state)
 
-    # 2) Price spike alerts (RTH only)
-    price_alerts = scan_price_spikes(state)
+    # 2) Price spike alerts (optional)
+    price_alerts = scan_price_spikes(state) if PRICE_SPIKES_ENABLED else []
 
-    # Log all alerts
+    # Log alerts
     for a in news_alerts + price_alerts:
         append_csv(ALERTS_CSV, [a["id"], a["ticker"], a["ts"], f"{a['price']:.4f}", a["hits"]])
 
     # Persist state after scheduling follow-ups
     with open(STATE_FILE,"w",encoding="utf-8") as f: json.dump(state,f)
 
-    # 3) Process follow-ups (RTH only)
+    # 3) Process follow-ups
     outcomes = process_followups()
     for o in outcomes:
         append_csv(OUTCOMES_CSV, [
