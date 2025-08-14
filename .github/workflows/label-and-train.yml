@@ -1,0 +1,78 @@
+name: label-and-train
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        description: "Ticker (e.g., CRWV)"
+        required: true
+        type: string
+      time:
+        description: "Time (UTC ISO like 2025-08-12T20:10:00Z or 'YYYY-MM-DD HH:MM' ET)"
+        required: true
+        type: string
+      window:
+        description: "Minutes around time to mark (default 90)"
+        required: false
+        default: "90"
+        type: string
+      y:
+        description: "1=actionable, 0=noise"
+        required: false
+        default: "1"
+        type: string
+      notes:
+        description: "Optional note"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  label_and_train:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps (stdlib only needed)
+        run: python -c "print('ready')"
+
+      - name: Add label
+        run: |
+          python tools/add_label.py \
+            --ticker "${{ inputs.ticker }}" \
+            --time   "${{ inputs.time }}" \
+            --window "${{ inputs.window }}" \
+            --y      "${{ inputs.y }}" \
+            --notes  "${{ inputs.notes }}"
+
+      - name: Commit labels
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dataset/labels.csv
+          git commit -m "labels: add ${{ inputs.ticker }} @ ${{ inputs.time }}" || echo "Nothing to commit"
+          git push || true
+
+      - name: Train model
+        run: python train.py
+
+      - name: Commit model & metrics
+        run: |
+          git add -f model/model.pkl model/metrics.json || true
+          git commit -m "model: update after label ${{ inputs.ticker }}" || echo "Nothing to commit"
+          git push || true
+
+      - name: Show outputs
+        run: |
+          echo "::group::Dataset"
+          ls -al dataset || true
+          echo "::endgroup::"
+          echo "::group::Model"
+          ls -al model || true
+          echo "::endgroup::"
