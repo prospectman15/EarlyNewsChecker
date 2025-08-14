@@ -3,6 +3,7 @@ name: train-model
 on:
   schedule:
     - cron: "30 21 * * MON-FRI"   # 5:30pm ET on weekdays
+    - cron: "45 14 * * MON-FRI"   # 10:45am ET: grabs yesterday’s late +60m, early today outcomes
   workflow_dispatch: {}
 
 jobs:
