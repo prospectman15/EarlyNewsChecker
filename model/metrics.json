@@ -1,0 +1,21 @@
+{
+  "mode": "logreg",
+  "auc": 1.0,
+  "best_threshold": 0.9,
+  "precision_at_best": 1.0,
+  "recall_at_best": 1.0,
+  "f1_at_best": 1.0,
+  "n_rows": 10,
+  "pos_rate": 0.5,
+  "features": [
+    "hits_in_window",
+    "score_max",
+    "score_sum",
+    "comments_max",
+    "comments_sum",
+    "has_positive",
+    "has_crisis",
+    "has_earnings",
+    "has_primary_source_link"
+  ]
+}
