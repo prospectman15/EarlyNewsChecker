@@ -1,0 +1,45 @@
+name: seed-and-train
+on:
+  workflow_dispatch:
+    inputs:
+      pos:   { description: "Positive examples", default: "120", required: true, type: string }
+      neg:   { description: "Negative examples", default: "160", required: true, type: string }
+      days:  { description: "Lookback days", default: "21", required: true, type: string }
+      tickers:{ description: "Tickers CSV", default: "AMD,NVDA,BA,CRWD,CRWV,SRFM,UAL,DAL,AAL", required: true, type: string }
+      seed:  { description: "Random seed", default: "42", required: true, type: string }
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Seed dataset
+        run: |
+          python tools/seed_dataset.py \
+            --pos "${{ inputs.pos }}" \
+            --neg "${{ inputs.neg }}" \
+            --days "${{ inputs.days }}" \
+            --tickers "${{ inputs.tickers }}" \
+            --seed "${{ inputs.seed }}"
+      - name: Commit dataset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dataset/*
+          git commit -m "seed: +${{ inputs.pos }} pos / +${{ inputs.neg }} neg" || echo "Nothing to commit"
+          git push || true
+      - name: Train model
+        run: python train.py
+      - name: Commit model
+        run: |
+          git add -f model/model.pkl model/metrics.json || true
+          git commit -m "model: update after seeding" || echo "Nothing to commit"
+          git push || true
