@@ -1,0 +1,2 @@
+id,ticker,spike_iso,last,from_open_pct,from_prev_close_pct,ten_min_pct,vol_mult,direction
+SPIKE-CRWV-1755200372,CRWV,2025-08-14T19:39:32.390401+00:00,100.4200,-12.875,-14.725,-0.550,1.175,DOWN
