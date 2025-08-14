@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 """
-Early Event Scanner (Discord)
-- Only alerts during regular US market hours (9:30–16:00 ET, Mon–Fri)
-- News signal: 2+ posts within a 60m window, OR a single "consensus" Reddit post
-- Price Spike Sentinel (up & down) only during market hours
-- Earnings/positive/crisis keywords included
-- Follow-ups (+60m/+24h) deferred until market is open
-- Weekly summary mode, Test mode
+Early Event Scanner (Discord) — Market-Hours + Cluster/Consensus + Learning
 
-ENV:
+What it does now:
+- Only alerts during regular US market hours (9:30–16:00 ET, Mon–Fri)
+- News alert if: (A) >=2 posts within 60m window, OR (B) 1 Reddit post with high consensus (score & comments)
+- Earnings/positive/crisis keywords included
+- Price Spike Sentinel (up & down) during market hours
+- Follow-ups (+60m / +24h) only during market hours
+- Logs signal features to dataset/signals.csv for training
+- Optional model gate (loads model/model.pkl if present) to require high score before pinging
+
+ENV (optional overrides):
   DISCORD_WEBHOOK_URL
-  MODE                       # "", "weekly", or "test"
+  MODE                       # "", "weekly", "test"
   SUMMARY_LOOKBACK_DAYS      # default 7
-  # Optional tuning (defaults shown):
-  # REQUIRED_MATCHES=2
-  # CLUSTER_WINDOW_MIN=60
-  # SINGLE_POST_MIN_SCORE=50
-  # SINGLE_POST_MIN_COMMENTS=20
+  REQUIRED_MATCHES           # default 2
+  CLUSTER_WINDOW_MIN         # default 60
+  SINGLE_POST_MIN_SCORE      # default 50
+  SINGLE_POST_MIN_COMMENTS   # default 20
+  MODEL_THRESHOLD            # default 0.60 (used if model bundle lacks its own threshold)
 """
 
 import os, re, json, time, html, hashlib, csv, statistics
@@ -28,12 +31,13 @@ from zoneinfo import ZoneInfo
 import requests
 import yfinance as yf
 
-# ------------------ Settings ------------------
-
+# ---------- Watchlist ----------
+# (Include both CRWV and CRWD to be safe; if a symbol doesn't exist, yfinance will just return NaN)
 WATCH_TICKERS: Dict[str, List[str]] = {
     "AMD":  ["amd", "advanced micro devices"],
     "NVDA": ["nvidia", "nvda"],
     "CRWD": ["crowdstrike", "crwd"],
+    "CRWV": ["coreweave", "crwv"],
     "SRFM": ["surfair", "surf air mobility", "srfm"],
     "BA":   ["boeing", "737", "787", "777", "max 9", "door plug"],
     "UAL":  ["united airlines", "ual", "united flight", "united air"],
@@ -41,6 +45,7 @@ WATCH_TICKERS: Dict[str, List[str]] = {
     "AAL":  ["american airlines", "aal"],
 }
 
+# ---------- Keywords ----------
 POSITIVE_WORDS: List[str] = [
     "upgrade","upgraded","raises guidance","raised guidance",
     "raise price target","price target","initiated coverage",
@@ -57,6 +62,7 @@ EARNINGS_WORDS: List[str] = [
     "revenue", "margin", "outlook", "forecast", "loss", "profit",
 ]
 
+# ---------- Sources / filters ----------
 MEDIA_BLACKLIST: List[str] = [
     "bloomberg.com","reuters.com","wsj.com","nytimes.com","cnn.com",
     "cnbc.com","apnews.com","foxnews.com","marketwatch.com",
@@ -65,8 +71,7 @@ MEDIA_BLACKLIST: List[str] = [
     "washingtonpost.com","usatoday.com","nbcnews.com","abcnews.go.com",
     "bbc.com","barrons.com","coindesk.com","cointelegraph.com",
 ]
-# Allow early primary sources (PR/SEC/IR) even if media is blacklisted:
-MEDIA_ALLOW: List[str] = ["sec.gov","businesswire.com","prnewswire.com"]
+MEDIA_ALLOW: List[str] = ["sec.gov","businesswire.com","prnewswire.com"]  # IR/SEC/PR are allowed
 
 RSS_SOURCES: List[str] = [
     "https://www.reddit.com/r/StockMarket/.rss",
@@ -78,13 +83,13 @@ RSS_SOURCES: List[str] = [
     "https://www.reddit.com/r/wallstreetbets/.rss",
 ]
 
-# --- Tunables (env overrides allowed) ---
+# ---------- Tunables (env overrides) ----------
 REQUIRED_MATCHES       = int(os.getenv("REQUIRED_MATCHES", "2"))
 CLUSTER_WINDOW_MIN     = int(os.getenv("CLUSTER_WINDOW_MIN", "60"))
 SINGLE_POST_MIN_SCORE  = int(os.getenv("SINGLE_POST_MIN_SCORE", "50"))
 SINGLE_POST_MIN_COMMS  = int(os.getenv("SINGLE_POST_MIN_COMMENTS", "20"))
 
-COOLDOWN_MIN_NEWS = 90  # minutes
+COOLDOWN_MIN_NEWS = 90  # minutes per ticker
 
 PRICE_SPIKE = {
     "from_open_abs_pct": 4.0,      # |last/open - 1| >= 4%
@@ -99,24 +104,66 @@ ALERTS_CSV   = "alerts.csv"
 OUTCOMES_CSV = "outcomes.csv"
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "").strip()
 
-# ------------------ Time / session utils ------------------
+# ---------- Learning (optional) ----------
+# If you added feature_utils.py + train.py, these hooks log features & gate on model score
+MODEL_PATH = "model/model.pkl"
+MODEL_THRESHOLD = float(os.getenv("MODEL_THRESHOLD", "0.60"))
+DATASET_DIR = "dataset"
+SIGNALS_CSV = os.path.join(DATASET_DIR, "signals.csv")
+_loaded_model = None
+_have_features = False
+try:
+    from feature_utils import build_features, MODEL_FEATURES  # provided in previous message
+    _have_features = True
+except Exception:
+    # run fine without learning; just skip feature logging/model gate
+    pass
 
+def load_model():
+    global _loaded_model
+    if _loaded_model is None and os.path.exists(MODEL_PATH):
+        try:
+            import joblib
+            _loaded_model = joblib.load(MODEL_PATH)
+        except Exception:
+            _loaded_model = None
+    return _loaded_model
+
+def ensure_signals_header():
+    if not _have_features:
+        return
+    os.makedirs(DATASET_DIR, exist_ok=True)
+    if not os.path.exists(SIGNALS_CSV):
+        with open(SIGNALS_CSV, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow([
+                "id","ticker","signal_iso", *MODEL_FEATURES,
+                "titles_concat","links_concat","score_max","comments_max","hits"
+            ])
+
+def log_signal_row(sig_id, ticker, ts_iso, feats_vec, titles, links, score_max, comm_max, hits):
+    if not _have_features:
+        return
+    ensure_signals_header()
+    with open(SIGNALS_CSV, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow([
+            sig_id, ticker, ts_iso, *feats_vec,
+            " || ".join(titles or []), " || ".join(links or []),
+            score_max, comm_max, hits
+        ])
+
+# ---------- Time / session ----------
 ET = ZoneInfo("America/New_York")
-
 def is_market_open(dt_utc: datetime | None = None) -> bool:
     if dt_utc is None:
         dt_utc = datetime.now(timezone.utc)
     et = dt_utc.astimezone(ET)
-    # Mon–Fri only
-    if et.weekday() >= 5:
+    if et.weekday() >= 5:  # Sat/Sun
         return False
-    # 9:30–16:00 ET
     start = dtime(9, 30)
     end   = dtime(16, 0)
     return start <= et.time() <= end
 
-# ------------------ General helpers ------------------
-
+# ---------- Utils ----------
 def clean_text(s: str) -> str:
     return re.sub(r"\s+"," ", html.unescape((s or "")).strip()).lower()
 
@@ -168,8 +215,7 @@ def sig_of_post(p: Dict[str, Any]) -> str:
     raw = f"{p.get('title','')}|{p.get('url','')}"
     return hashlib.md5(raw.encode("utf-8")).hexdigest()
 
-# ------------------ Price utils ------------------
-
+# ---------- Price utils ----------
 def get_last_price(ticker: str) -> Tuple[float,str]:
     try:
         df = yf.download(tickers=ticker, period="2d", interval="1m", progress=False, threads=False)
@@ -203,11 +249,10 @@ def get_prev_close(ticker: str) -> float:
         pass
     return float("nan")
 
-# ------------------ Sources ------------------
-
+# ---------- Sources ----------
 def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
     url = f"https://www.reddit.com/search.json?q={requests.utils.quote(query)}&sort=new&limit={limit}&t=day"
-    headers = {"User-Agent":"early-event-scanner/0.7 by github-actions"}
+    headers = {"User-Agent":"early-event-scanner/0.8 by github-actions"}
     try:
         r = requests.get(url, headers=headers, timeout=20)
         if r.status_code != 200: return []
@@ -255,10 +300,8 @@ def fetch_rss(url: str) -> List[Dict[str, Any]]:
     except Exception:
         return []
 
-# ------------------ News scanning ------------------
-
+# ---------- News scanning ----------
 def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
-    # Only run during market hours
     if not is_market_open():
         return []
 
@@ -284,7 +327,7 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                 p["_created"] = created
                 candidates.append(p)
 
-    # RSS from subs (no comment/score data here)
+    # RSS (no Reddit score/comment data)
     for feed in RSS_SOURCES:
         items = fetch_rss(feed)
         for it in items:
@@ -303,14 +346,14 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "num_comments": 0, "score": 0, "source": feed
                     })
 
-    # De-dup by title+url signature
+    # De-dup
     seen=set(); uniq=[]
     for c in candidates:
         sig = sig_of_post({"title": c["title"], "url": c["url"]})
         if sig in seen: continue
         seen.add(sig); uniq.append(c)
 
-    # Group by ticker and apply cluster/consensus rules
+    # Group and apply cluster/consensus + model gate
     new_alerts=[]
     state.setdefault("cooldowns_news", {})
     state.setdefault("pending", [])
@@ -320,70 +363,92 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     for c in uniq:
         by_ticker.setdefault(c["_ticker"], []).append(c)
 
+    mdl = load_model()
+    thr = None
+    if mdl:
+        thr = float(mdl.get("default_threshold", MODEL_THRESHOLD))
+
     for ticker, posts in by_ticker.items():
         posts = [p for p in posts if p["_created"] >= window_start]
         if not posts: continue
         posts.sort(key=lambda x: x["_created"], reverse=True)
 
-        # Rule A: at least REQUIRED_MATCHES within the CLUSTER_WINDOW_MIN
+        # Rule A: >= REQUIRED_MATCHES within window
         cluster_ok = len(posts) >= REQUIRED_MATCHES
-
-        # Rule B: OR one Reddit post with high consensus (score & comments)
+        # Rule B: OR a single Reddit post with high consensus
         consensus_ok = any(
             (p.get("source") == "reddit_search") and
             (int(p.get("score",0)) >= SINGLE_POST_MIN_SCORE) and
             (int(p.get("num_comments",0)) >= SINGLE_POST_MIN_COMMS)
             for p in posts
         )
-
         if not (cluster_ok or consensus_ok):
             continue
 
-        # Cooldown per ticker for news alerts
-        t_now = datetime.now(timezone.utc)
+        # Cooldown per ticker
+        now_ts = int(datetime.now(timezone.utc).timestamp())
         last_ts = state["cooldowns_news"].get(ticker, 0)
-        minutes_since = ((t_now - datetime.fromtimestamp(last_ts, tz=timezone.utc)).total_seconds()/60) if last_ts else 1e9
+        minutes_since = ((now_ts - last_ts) / 60.0) if last_ts else 1e9
         if minutes_since < COOLDOWN_MIN_NEWS:
             continue
 
-        spot, src = get_last_price(ticker)
-        top = posts[:3]
-        top_lines = [f"• {p['_created'].strftime('%H:%M UTC')} — {p['title']}" for p in top]
-        links = " | ".join((p.get("url") or "") for p in top)
+        # Build features & (optionally) model score
+        top = posts[:min(5, len(posts))]
+        titles = [p['title'] for p in top]
+        links  = [(p.get('url') or "") for p in top]
+        scores = [int(p.get("score",0)) for p in top]
+        comms  = [int(p.get("num_comments",0)) for p in top]
 
+        spot, src = get_last_price(ticker)
         msg = (f"**{ticker}** — early *news/earnings* "
                f"({len(posts)} hits/{CLUSTER_WINDOW_MIN}m; req={REQUIRED_MATCHES}, consensus={'yes' if consensus_ok else 'no'})\n"
-               f"Spot: ${spot:.2f} (src: {src})\n" + "\n".join(top_lines) + (("\nLinks: " + links) if links else ""))
+               f"Spot: ${spot:.2f} (src: {src})\n" +
+               "\n".join([f"• {p['_created'].strftime('%H:%M UTC')} — {p['title']}" for p in top]) +
+               (("\nLinks: " + " | ".join(links)) if links else ""))
 
-        m = state["metrics"].get(ticker)
-        if m and m.get("count",0) >= 5:
-            win_rate = (m.get("win_count",0)/max(1,m["count"])) * 100
-            avg_move = m.get("avg_abs_move",0.0)
-            msg += f"\nHistory: {win_rate:.0f}% win, avg |Δ|={avg_move:.2f}% (n={m['count']})"
+        # Log signal for training (always log, even if we end up skipping on model)
+        sig_id = f"SIGNAL-{ticker}-{now_ts}"
+        if _have_features:
+            feats_vec, _ = build_features(titles, links, scores, comms, hits_in_window=len(posts))
+            log_signal_row(sig_id, ticker, datetime.now(timezone.utc).isoformat(),
+                           feats_vec, titles, links, max(scores or [0]), max(comms or [0]), len(posts))
+        else:
+            feats_vec = None
 
+        # Model gate
+        if mdl and feats_vec is not None:
+            try:
+                prob = float(mdl["clf"].predict_proba([feats_vec])[0][1])
+                use_thr = thr if thr is not None else MODEL_THRESHOLD
+                msg += f"\nModel score: {prob:.2f} (thr {use_thr:.2f})"
+                if prob < use_thr:
+                    # skip notify; not strong enough
+                    continue
+            except Exception:
+                pass
+
+        # Passed rules (and model if present): send & schedule follow-ups
         send_discord(msg, title="Early Event Scanner")
-        state["cooldowns_news"][ticker] = int(t_now.timestamp())
+        state["cooldowns_news"][ticker] = now_ts
 
-        aid = f"NEWS-{ticker}-{int(t_now.timestamp())}"
-        t60  = int((t_now + timedelta(minutes=60)).timestamp())
-        t24h = int((t_now + timedelta(hours=24)).timestamp())
+        aid = f"NEWS-{ticker}-{now_ts}"
+        t60  = now_ts + 60*60
+        t24h = now_ts + 24*60*60
         state["pending"].extend([
-            {"id": aid, "ticker": ticker, "alert_ts": int(t_now.timestamp()), "alert_px": spot,
+            {"id": aid, "ticker": ticker, "alert_ts": now_ts, "alert_px": spot,
              "due_ts": t60, "label": "t+60m", "done": False},
-            {"id": aid, "ticker": ticker, "alert_ts": int(t_now.timestamp()), "alert_px": spot,
+            {"id": aid, "ticker": ticker, "alert_ts": now_ts, "alert_px": spot,
              "due_ts": t24h, "label": "t+24h", "done": False},
         ])
 
-        new_alerts.append({"id": aid, "ticker": ticker, "ts": t_now.isoformat(), "price": spot, "hits": len(posts)})
-
+        new_alerts.append({"id": aid, "ticker": ticker, "ts": datetime.now(timezone.utc).isoformat(),
+                           "price": spot, "hits": len(posts)})
     return new_alerts
 
-# ------------------ Price Spike Sentinel (RTH only) ------------------
-
+# ---------- Price Spike Sentinel (market hours only) ----------
 def price_spike_alert(ticker: str, state: Dict[str, Any]) -> Dict[str, Any] | None:
     if not is_market_open():
         return None
-
     df = get_intraday_df(ticker)
     if df is None or len(df) < 15: return None
     try:
@@ -455,18 +520,19 @@ def scan_price_spikes(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         out.append({"id": aid, "ticker": ticker, "ts": t_now.isoformat(), "price": a["last"], "hits": -1})
     return out
 
-# ------------------ Follow-ups & Weekly Summary ------------------
-
+# ---------- Follow-ups (market hours only) ----------
 def process_followups() -> List[Dict[str, Any]]:
-    # Defer follow-ups until market is open (no off-hours pings)
     if not is_market_open():
         return []
 
-    state = load_state()
-    t_now = int(datetime.now(timezone.utc).timestamp())
-    state.setdefault("pending", [])
-    state.setdefault("metrics", {})
+    # load state
+    state = {}
+    if os.path.exists(STATE_FILE):
+        try: state = json.load(open(STATE_FILE,"r",encoding="utf-8"))
+        except Exception: state = {}
+    state.setdefault("pending", []); state.setdefault("metrics", {})
 
+    t_now = int(datetime.now(timezone.utc).timestamp())
     results=[]; new_pending=[]
     for item in state["pending"]:
         if item.get("done"): continue
@@ -494,7 +560,6 @@ def process_followups() -> List[Dict[str, Any]]:
                 prev_avg = float(m.get("avg_abs_move",0.0))
                 m["avg_abs_move"] = ((prev_avg*prev_n) + abs(ret_pct)) / m["count"]
                 state["metrics"][ticker] = m
-
                 send_discord(
                     f"**{ticker}** follow-up ({label}): {ret_pct:+.2f}% (alert ${alert_px:.2f} → now ${cur_px:.2f})\n"
                     f"Updated: win_rate={(m['win_count']/m['count']*100):.0f}%  avg |Δ|={m['avg_abs_move']:.2f}%  (n={m['count']})",
@@ -512,6 +577,7 @@ def process_followups() -> List[Dict[str, Any]]:
     with open(STATE_FILE,"w",encoding="utf-8") as f: json.dump(state,f)
     return results
 
+# ---------- Weekly summary ----------
 def parse_iso(s: str) -> datetime:
     try:
         return datetime.fromisoformat(s.replace("Z","")).replace(tzinfo=timezone.utc) if "Z" in s else datetime.fromisoformat(s)
@@ -579,8 +645,7 @@ def post_weekly_summary():
         lines.append("Worst: " + "; ".join([f"{t} {v:+.2f}%" for t, v in worst]))
     send_discord("\n".join(lines), title="Weekly Summary")
 
-# ------------------ Main ------------------
-
+# ---------- Main ----------
 def main():
     mode = os.getenv("MODE","").strip().lower()
 
@@ -593,7 +658,7 @@ def main():
     if mode == "test":
         send_discord("**TEST** — webhook is working ✅", title="Test Alert"); print("Sent test message."); return
 
-    # Hard gate: do nothing (no pings) if market closed
+    # Hard gate: skip everything if the market is closed
     if not is_market_open():
         print("Market closed — skipping scan and follow-ups.")
         return
@@ -605,20 +670,20 @@ def main():
         except Exception: state = {}
     state.setdefault("pending", []); state.setdefault("metrics", {})
 
-    # 1) News-based alerts
+    # 1) News-based alerts (cluster/consensus + optional model gate)
     news_alerts = scan_news(state)
 
-    # 2) Price spike alerts
+    # 2) Price spike alerts (RTH only)
     price_alerts = scan_price_spikes(state)
 
-    # Log alerts
+    # Log all alerts
     for a in news_alerts + price_alerts:
         append_csv(ALERTS_CSV, [a["id"], a["ticker"], a["ts"], f"{a['price']:.4f}", a["hits"]])
 
     # Persist state after scheduling follow-ups
     with open(STATE_FILE,"w",encoding="utf-8") as f: json.dump(state,f)
 
-    # 3) Process follow-ups (only during market hours)
+    # 3) Process follow-ups (RTH only)
     outcomes = process_followups()
     for o in outcomes:
         append_csv(OUTCOMES_CSV, [
@@ -633,4 +698,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-  
