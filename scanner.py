@@ -8,8 +8,10 @@ What it does:
     A) >= REQUIRED_MATCHES posts in last CLUSTER_WINDOW_MIN minutes, OR
     B) one "consensus" Reddit post (min score/comments)
   Filters mainstream media links; allows IR/SEC/PR early sources
-- PRICE SPIKE ALERT when intraday move/volume crosses thresholds
-- FOLLOW-UPS at +60m and +24h (deferred until market open)
+- PRICE SPIKES: detected silently (NO DISCORD). Each spike is logged to dataset/spikes.csv
+  and auto-adds a positive label to dataset/labels.csv so training can learn
+  relationships between chatter and subsequent moves.
+- FOLLOW-UPS at +60m and +24h (for news alerts only; still market-hours gated)
 - WEEKLY SUMMARY if MODE=weekly
 - TEST webhook if MODE=test
 - OPTIONAL ML GATE: logs features to dataset/signals.csv and, if model/model.pkl exists,
@@ -24,7 +26,8 @@ ENV (optional overrides):
   SINGLE_POST_MIN_SCORE       # default 50
   SINGLE_POST_MIN_COMMENTS    # default 20
   MODEL_THRESHOLD             # default 0.60 (used if model bundle lacks its own)
-  PRICE_SPIKES_ENABLED        # "1" (default) or "0" to disable spike alerts
+  PRICE_SPIKES_ENABLED        # "1" (default) or "0" to disable spike detection entirely
+  SPIKE_LABEL_WINDOW_MIN      # default 90 (minutes around spike time to mark as positive)
 """
 
 import os
@@ -113,7 +116,8 @@ PRICE_SPIKE = {
     "big_move_abs_pct": 5.0,       # bypass volume if >= 5%
     "cooldown_min": 45,
 }
-PRICE_SPIKES_ENABLED = os.getenv("PRICE_SPIKES_ENABLED", "1") == "1"
+PRICE_SPIKES_ENABLED   = os.getenv("PRICE_SPIKES_ENABLED", "1") == "1"
+SPIKE_LABEL_WINDOW_MIN = int(os.getenv("SPIKE_LABEL_WINDOW_MIN", "90"))
 
 STATE_FILE   = "state.json"
 ALERTS_CSV   = "alerts.csv"
@@ -126,6 +130,8 @@ MODEL_PATH = "model/model.pkl"
 MODEL_THRESHOLD = float(os.getenv("MODEL_THRESHOLD", "0.60"))
 DATASET_DIR = "dataset"
 SIGNALS_CSV = os.path.join(DATASET_DIR, "signals.csv")
+SPIKES_CSV  = os.path.join(DATASET_DIR, "spikes.csv")
+LABELS_CSV  = os.path.join(DATASET_DIR, "labels.csv")
 
 _loaded_model = None
 _have_features = False
@@ -145,16 +151,55 @@ def load_model():
             _loaded_model = None
     return _loaded_model
 
+# ---- dataset utils
+
+def _ensure_dir(path: str):
+    os.makedirs(path, exist_ok=True)
+
 def ensure_signals_header():
     if not _have_features:
         return
-    os.makedirs(DATASET_DIR, exist_ok=True)
+    _ensure_dir(DATASET_DIR)
     if not os.path.exists(SIGNALS_CSV):
         with open(SIGNALS_CSV, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow([
                 "id","ticker","signal_iso", *MODEL_FEATURES,
                 "titles_concat","links_concat","score_max","comments_max","hits"
             ])
+
+def ensure_spikes_header():
+    _ensure_dir(DATASET_DIR)
+    if not os.path.exists(SPIKES_CSV):
+        with open(SPIKES_CSV, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow([
+                "id","ticker","spike_iso","last","from_open_pct","from_prev_close_pct",
+                "ten_min_pct","vol_mult","direction"
+            ])
+
+def ensure_labels_header():
+    _ensure_dir(DATASET_DIR)
+    if not os.path.exists(LABELS_CSV):
+        with open(LABELS_CSV, "w", newline="", encoding="utf-8") as f:
+            csv.writer(f).writerow(["ticker","iso_time","window_min","y","notes"])
+
+def append_spike_row(spike_row: List[Any]):
+    ensure_spikes_header()
+    with open(SPIKES_CSV, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(spike_row)
+
+def append_label_row(ticker: str, iso_time: str, window_min: int, y: int, notes: str):
+    ensure_labels_header()
+    row = [ticker.upper(), iso_time, str(int(window_min)), str(int(y)), notes]
+    # simple de-dupe
+    try:
+        with open(LABELS_CSV, newline="", encoding="utf-8") as f:
+            for r in csv.reader(f):
+                if r == row:
+                    return
+    except Exception:
+        pass
+    with open(LABELS_CSV, "a", newline="", encoding="utf-8") as f:
+        csv.writer(f).writerow(row)
 
 def log_signal_row(sig_id, ticker, ts_iso, feats_vec, titles, links, score_max, comm_max, hits):
     if not _have_features:
@@ -269,7 +314,7 @@ def get_prev_close(ticker: str) -> float:
 
 def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
     url = f"https://www.reddit.com/search.json?q={requests.utils.quote(query)}&sort=new&limit={limit}&t=day"
-    headers = {"User-Agent":"early-event-scanner/0.9 by github-actions"}
+    headers = {"User-Agent":"early-event-scanner/1.0 by github-actions"}
     try:
         r = requests.get(url, headers=headers, timeout=20)
         if r.status_code != 200: return []
@@ -424,13 +469,11 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             feats_vec, _ = build_features(titles, links, scores, comms, hits_in_window=len(posts))
             log_signal_row(sig_id, ticker, datetime.now(timezone.utc).isoformat(),
                            feats_vec, titles, links, max(scores or [0]), max(comms or [0]), len(posts))
-        else:
-            feats_vec = None
 
         # Model gate if model present
-        if mdl and feats_vec is not None:
+        if mdl and _have_features:
             try:
-                prob = float(mdl["clf"].predict_proba([feats_vec])[0][1])
+                prob = float(mdl["clf"].predict_proba([feats_vec])[0][1])  # type: ignore[name-defined]
                 use_thr = learned_thr if learned_thr is not None else MODEL_THRESHOLD
                 msg += f"\nModel score: {prob:.2f} (thr {use_thr:.2f})"
                 if prob < use_thr:
@@ -438,7 +481,7 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-        # Send + schedule follow-ups
+        # Send + schedule follow-ups (NEWS ONLY)
         send_discord(msg, title="Early Event Scanner")
         state["cooldowns_news"][ticker] = now_ts
 
@@ -456,7 +499,7 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
                            "price": spot, "hits": len(posts)})
     return new_alerts
 
-# ----------------------- Price spike scanning -----------------------
+# --------------------- SILENT price spike logging ---------------------
 
 def price_spike_alert(ticker: str, state: Dict[str, Any]) -> Dict[str, Any] | None:
     # Only during market hours
@@ -522,7 +565,7 @@ def price_spike_alert(ticker: str, state: Dict[str, Any]) -> Dict[str, Any] | No
     if not (big_move or (base_move and vol_ok)):
         return None
 
-    # Cooldown per ticker
+    # Per-ticker cooldown
     state.setdefault("cooldowns_price", {})
     last_ts = state["cooldowns_price"].get(ticker, 0)
     if last_ts:
@@ -541,10 +584,18 @@ def price_spike_alert(ticker: str, state: Dict[str, Any]) -> Dict[str, Any] | No
         "direction": "UP" if (from_open >= 0) else "DOWN",
     }
 
-def scan_price_spikes(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+def scan_price_spikes(state: Dict[str, Any]) -> int:
+    """
+    Detect spikes silently. For each spike:
+      - Append to dataset/spikes.csv
+      - Append a positive label to dataset/labels.csv at the spike time
+        (signals within +/- SPIKE_LABEL_WINDOW_MIN of that time will be treated as y=1)
+    Returns: number of spikes logged
+    """
     if not is_market_open() or not PRICE_SPIKES_ENABLED:
-        return []
-    out = []
+        return 0
+
+    count = 0
     t_now = datetime.now(timezone.utc)
     for ticker in WATCH_TICKERS.keys():
         try:
@@ -554,25 +605,24 @@ def scan_price_spikes(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             a = None
         if not a:
             continue
-        msg = (
-            f"**{ticker}** — *price spike* **{a['direction']}**\n"
-            f"From open: {a['from_open']:+.2f}% | From prev close: {a['from_prev_close']:+.2f}% | "
-            f"Last 10m: {a['ten_pct']:+.2f}% | Vol ≈ {a['vol_mult']:.1f}× avg\n"
-            f"Spot: ${a['last']:.2f}"
-        )
-        send_discord(msg, title="Price Spike")
 
-        aid = f"PRC-{ticker}-{int(t_now.timestamp())}"
-        t60  = int((t_now + timedelta(minutes=60)).timestamp())
-        t24h = int((t_now + timedelta(hours=24)).timestamp())
-        state.setdefault("pending", []).extend([
-            {"id": aid, "ticker": ticker, "alert_ts": int(t_now.timestamp()), "alert_px": a["last"],
-             "due_ts": t60, "label": "t+60m", "done": False},
-            {"id": aid, "ticker": ticker, "alert_ts": int(t_now.timestamp()), "alert_px": a["last"],
-             "due_ts": t24h, "label": "t+24h", "done": False},
+        spike_id = f"SPIKE-{ticker}-{int(t_now.timestamp())}"
+        spike_iso = t_now.isoformat()
+
+        # 1) Log the spike (for analysis/QA)
+        append_spike_row([
+            spike_id, ticker, spike_iso,
+            f"{a['last']:.4f}", f"{a['from_open']:.3f}", f"{a['from_prev_close']:.3f}",
+            f"{a['ten_pct']:.3f}", f"{a['vol_mult']:.3f}", a['direction']
         ])
-        out.append({"id": aid, "ticker": ticker, "ts": t_now.isoformat(), "price": a["last"], "hits": -1})
-    return out
+
+        # 2) Auto-label a window around the spike as positive (so recent signals become y=1)
+        notes = f"auto_spike: {a['direction']} |Δopen={a['from_open']:+.2f}% | last10m={a['ten_pct']:+.2f}% | vol≈{a['vol_mult']:.1f}×"
+        append_label_row(ticker, spike_iso, SPIKE_LABEL_WINDOW_MIN, 1, notes)
+
+        count += 1
+
+    return count
 
 # --------------------------- Follow-ups ---------------------------
 
@@ -730,17 +780,17 @@ def main():
     # 1) News-based alerts
     news_alerts = scan_news(state)
 
-    # 2) Price spike alerts (optional)
-    price_alerts = scan_price_spikes(state) if PRICE_SPIKES_ENABLED else []
+    # 2) Silent price spike logging (NO DISCORD, NO FOLLOW-UPS)
+    spikes_logged = scan_price_spikes(state) if PRICE_SPIKES_ENABLED else 0
 
-    # Log alerts
-    for a in news_alerts + price_alerts:
+    # Log news alerts only (spikes go to dataset/spikes.csv)
+    for a in news_alerts:
         append_csv(ALERTS_CSV, [a["id"], a["ticker"], a["ts"], f"{a['price']:.4f}", a["hits"]])
 
     # Persist state after scheduling follow-ups
     with open(STATE_FILE,"w",encoding="utf-8") as f: json.dump(state,f)
 
-    # 3) Process follow-ups
+    # 3) Process follow-ups (for news alerts)
     outcomes = process_followups()
     for o in outcomes:
         append_csv(OUTCOMES_CSV, [
@@ -750,7 +800,7 @@ def main():
 
     print("Scan complete.",
           "News alerts:", len(news_alerts),
-          "Price alerts:", len(price_alerts),
+          "Spikes logged:", spikes_logged,
           "Follow-ups processed:", len(outcomes))
 
 if __name__ == "__main__":
