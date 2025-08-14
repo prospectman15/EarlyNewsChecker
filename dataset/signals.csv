@@ -1,1 +1,2 @@
 id,ticker,signal_iso,hits_in_window,score_max,score_sum,comments_max,comments_sum,has_positive,has_crisis,has_earnings,has_primary_source_link,titles_concat,links_concat,score_max,comments_max,hits
+SEED-CRWV-20250812,CRWV,2025-08-12T20:10:00Z,3,120,240,85,150,0,1,1,1,"CRWV results miss; guidance cut || CoreWeave plunges after hours","https://investor.coreweave.com/press-release || https://www.businesswire.com",120,85,3
