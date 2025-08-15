@@ -2,17 +2,17 @@
 """
 Seed your dataset with MANY synthetic-but-realistic examples.
 
-Creates/append to:
+Creates/appends:
   - dataset/signals.csv  (features your model trains on)
-  - dataset/spikes.csv   (spike telemetry; not required for training)
-  - dataset/labels.csv   (positives & negatives for supervised learning)
+  - dataset/labels.csv   (positives & negatives)
+  - dataset/spikes.csv   (price spike telemetry)
 
-Usage (locally or in Actions):
-  python tools/seed_dataset.py --pos 120 --neg 160 --days 21 --tickers AMD,NVDA,BA,CRWD,CRWV,SRFM,UAL,DAL,AAL
+Usage (locally or via Actions):
+  python tools/seed_dataset.py --pos 500 --neg 800 --days 30 --tickers AMD,NVDA,BA,CRWD,CRWV,SRFM,UAL,DAL,AAL,TSLA,GME,AMC,PLTR,SMCI,COIN,HOOD,RIVN,AAPL,MSFT,META,TSM
 """
 
 import os, csv, random
-from datetime import datetime, timedelta, time as dtime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
@@ -23,7 +23,14 @@ SIGNALS = os.path.join(DATASET_DIR, "signals.csv")
 SPIKES  = os.path.join(DATASET_DIR, "spikes.csv")
 LABELS  = os.path.join(DATASET_DIR, "labels.csv")
 
-WATCH = ["AMD","NVDA","BA","CRWD","CRWV","SRFM","UAL","DAL","AAL"]
+# Default pool includes your watchlist + high-chatter names
+DEFAULT_TICKERS = [
+    # your watchlist
+    "AMD","NVDA","BA","CRWD","CRWV","SRFM","UAL","DAL","AAL",
+    # extra chatter-heavy
+    "TSLA","GME","AMC","PLTR","SMCI","COIN","HOOD","RIVN","TSM",
+    "AAPL","MSFT","META","GOOGL","NIO","BBBYQ","CVNA","SOFI","SQ","AFRM"
+]
 
 POS_TITLES = {
     "generic": [
@@ -32,27 +39,38 @@ POS_TITLES = {
         "major partnership rumored; PR expected",
         "guidance raised per leak",
         "analyst reiterates buy; target hiked",
+        "strategic customer win; contract noted",
     ],
     "earn": [
         "earnings beat; revenue above consensus",
         "EPS surprise; guide above",
         "results strong; margin up",
         "pre-announce upside",
+        "raises full-year outlook",
     ],
     "crisis": [
         "emergency landing; FAA update incoming",
         "major outage report; cyber incident",
         "production issue; recall chatter",
         "CEO resign rumor",
+        "investigation launched; regulator involved",
+    ],
+    "meme": [
+        "🚀🚀 to the moon (unusual volume) ",
+        "gamma ramp starting; IV exploding",
+        "shorts trapped? BIG move setting up",
+        "massive options sweep; flow bots lit",
+        "YOLO DD says breakout imminent",
     ],
 }
 
 NEG_TITLES = [
-    "to the moon!! no source",
-    "is a squeeze coming? vague rumors",
+    "to the moon!! (no source)",
+    "is a squeeze coming? vague rumor",
     "anyone buying this dip??",
     "chart looks bullish AF",
     "random DD thread (no links)",
+    "copium hopium thread; no data",
 ]
 
 PRIM_LINKS = [
@@ -60,19 +78,26 @@ PRIM_LINKS = [
     "https://www.prnewswire.com",
     "https://www.sec.gov/Archives/edgar/",
 ]
-REDDIT_LINK = "https://www.reddit.com/r/stocks"
-TWITTER     = "https://twitter.com/someacct"
+LINKS_SOCIAL = [
+    "https://www.reddit.com/r/stocks",
+    "https://www.reddit.com/r/wallstreetbets",
+    "https://www.reddit.com/r/StockMarket",
+    "https://x.com/someacct",
+    "https://stocktwits.com/someuser",
+]
 
 def ensure_headers():
     os.makedirs(DATASET_DIR, exist_ok=True)
     if not os.path.exists(SIGNALS):
         with open(SIGNALS, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow([
+                # must match your scanner/train format exactly
                 "id","ticker","signal_iso",
                 "hits_in_window","score_max","score_sum","comments_max","comments_sum",
                 "has_positive","has_crisis","has_earnings","has_primary_source_link",
                 "titles_concat","links_concat",
-                "score_max","comments_max","hits"  # trailing dup fields (scanner-compatible)
+                # trailing dup fields kept for compatibility
+                "score_max","comments_max","hits"
             ])
     if not os.path.exists(SPIKES):
         with open(SPIKES, "w", newline="", encoding="utf-8") as f:
@@ -84,9 +109,9 @@ def ensure_headers():
         with open(LABELS, "w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["ticker","iso_time","window_min","y","notes"])
 
-def rand_market_dt(days_back=14) -> datetime:
-    # random business day/time in the last N days, during RTH 09:35–15:45 ET
-    for _ in range(200):
+def rand_market_dt(days_back=21) -> datetime:
+    """Random business RTH time in last N days (09:35–15:45 ET)."""
+    for _ in range(300):
         d = datetime.now(ET) - timedelta(days=random.randint(1, days_back))
         if d.weekday() >= 5:  # weekend
             continue
@@ -100,36 +125,48 @@ def rand_market_dt(days_back=14) -> datetime:
 
 def pick(seq): return random.choice(seq)
 
-def make_positive_row(ticker: str) -> tuple[dict, dict, dict]:
+def _mk_titles(kind: str) -> list[str]:
+    # always at least 2 corroborating titles
+    titles = [pick(POS_TITLES[kind])]
+    # add a corroborator that matches the theme
+    if kind == "crisis":
+        titles.append(pick(POS_TITLES["crisis"]))
+    elif kind == "earn":
+        titles.append(pick(POS_TITLES["earn"]))
+    elif kind == "meme":
+        titles.append(pick(POS_TITLES["meme"]))
+    else:
+        titles.append(pick(POS_TITLES["generic"]))
+    return titles
+
+def make_positive_row(ticker: str, prefer_meme=False) -> tuple[dict, dict, dict]:
     """
-    Returns (signals_row_dict, spikes_row_dict, label_row_dict)
-    Positive means: clear online activity -> spike in next 15–75 minutes
+    Positive: clear chatter (2+ corroborations) -> spike ~15–75m later.
+    Types: earn / generic / crisis / meme (meme tends to UP spikes).
     """
-    # Categorize: earnings vs positive vs crisis (crisis => DOWN spike)
-    kind = random.choices(["earn","generic","crisis"], weights=[0.35, 0.45, 0.20])[0]
+    if prefer_meme and random.random() < 0.55:
+        kind = "meme"
+    else:
+        kind = random.choices(["earn","generic","crisis","meme"], weights=[0.30, 0.40, 0.15, 0.15])[0]
+
     base_t = rand_market_dt()
 
-    # chatter features
+    # chatter features: stronger than negatives
     hits = random.randint(2, 4)
-    score_max = random.randint(80, 220)
-    comments_max = random.randint(60, 160)
-    score_sum = score_max + random.randint(50, 200)
-    comments_sum = comments_max + random.randint(40, 180)
-    has_pos  = 1 if kind in ("earn","generic") else 0
+    score_max = random.randint(90, 260) if kind != "meme" else random.randint(120, 350)
+    comments_max = random.randint(60, 180) if kind != "meme" else random.randint(80, 240)
+    score_sum = score_max + random.randint(60, 220)
+    comments_sum = comments_max + random.randint(50, 200)
+
+    has_pos  = 1 if kind in ("earn","generic","meme") else 0
     has_cri  = 1 if kind == "crisis" else 0
     has_earn = 1 if kind == "earn" else 0
-    prim     = 1 if (has_earn or random.random() < 0.5) else 0
+    prim     = 1 if (has_earn or random.random() < 0.45) else 0
 
-    titles = []
-    if kind == "earn":   titles.append(pick(POS_TITLES["earn"]))
-    if kind == "generic":titles.append(pick(POS_TITLES["generic"]))
-    if kind == "crisis": titles.append(pick(POS_TITLES["crisis"]))
-    # add a second corroborating title
-    titles.append(pick(POS_TITLES["generic" if kind!="crisis" else "crisis"]))
-
-    links = [REDDIT_LINK]
+    titles = _mk_titles(kind)
+    links = [pick(LINKS_SOCIAL)]
     if prim: links.append(pick(PRIM_LINKS))
-    if random.random() < 0.4: links.append(TWITTER)
+    if random.random() < 0.5: links.append(pick(LINKS_SOCIAL))
 
     sig_iso = base_t.isoformat()
     sid = f"SEED-{ticker}-{int(base_t.timestamp())}"
@@ -150,7 +187,7 @@ def make_positive_row(ticker: str) -> tuple[dict, dict, dict]:
     spike_t = base_t + timedelta(minutes=delta_min)
     direction_up = (kind != "crisis")
     move_big = random.random() < 0.65
-    from_open = (random.uniform(4.0, 9.0) if move_big else random.uniform(2.0, 4.5))
+    from_open = (random.uniform(4.0, 10.0) if move_big else random.uniform(2.0, 4.5))
     ten_min   = random.uniform(1.5, 4.0)
     vol_mult  = random.uniform(1.5, 3.2)
     if not direction_up:
@@ -162,7 +199,7 @@ def make_positive_row(ticker: str) -> tuple[dict, dict, dict]:
         "id": f"SPIKE-{ticker}-{int(spike_t.timestamp())}",
         "ticker": ticker,
         "spike_iso": spike_t.isoformat(),
-        "last": f"{random.uniform(5.0, 350.0):.2f}",
+        "last": f"{random.uniform(5.0, 450.0):.2f}",
         "from_open_pct": f"{from_open:.3f}",
         "from_prev_close_pct": f"{from_prev:.3f}",
         "ten_min_pct": f"{ten_min:.3f}",
@@ -173,26 +210,32 @@ def make_positive_row(ticker: str) -> tuple[dict, dict, dict]:
     label = {
         "ticker": ticker, "iso_time": spike_t.isoformat(),
         "window_min": "90", "y": "1",
-        "notes": f"auto positive seed via spike {spikes['direction']}"
+        "notes": f"auto positive seed via spike {spikes['direction']} ({kind})"
     }
 
     return signals, spikes, label
 
-def make_negative_row(ticker: str) -> tuple[dict, dict|None, dict]:
+def make_negative_row(ticker: str, meme_bias=False) -> tuple[dict, dict|None, dict]:
     """
-    Negative means: chatter but no meaningful move soon (or opposite tiny move).
-    We don't add a spike row (or add a tiny/noisy one very rarely).
+    Negative: chatter but no meaningful move soon (or tiny/opposite move).
+    Sometimes meme-y with lots of chatter but no primary source.
     """
     base_t = rand_market_dt()
     hits = random.randint(2, 3)
-    score_max = random.randint(20, 60)
-    comments_max = random.randint(8, 28)
-    score_sum = score_max + random.randint(10, 40)
-    comments_sum = comments_max + random.randint(6, 24)
+    if meme_bias and random.random() < 0.5:
+        score_max = random.randint(70, 160)
+        comments_max = random.randint(40, 120)
+        titles = [pick(POS_TITLES["meme"]), pick(NEG_TITLES)]
+    else:
+        score_max = random.randint(20, 70)
+        comments_max = random.randint(8, 40)
+        titles = [pick(NEG_TITLES), pick(NEG_TITLES)]
 
-    titles = [pick(NEG_TITLES), pick(NEG_TITLES)]
-    links = [REDDIT_LINK]
-    if random.random() < 0.2: links.append(TWITTER)
+    score_sum = score_max + random.randint(10, 80)
+    comments_sum = comments_max + random.randint(6, 60)
+
+    links = [pick(LINKS_SOCIAL)]
+    if random.random() < 0.15: links.append(pick(LINKS_SOCIAL))  # chatter, but no primary link
 
     sig_iso = base_t.isoformat()
     sid = f"SEED-{ticker}-{int(base_t.timestamp())}"
@@ -211,21 +254,21 @@ def make_negative_row(ticker: str) -> tuple[dict, dict|None, dict]:
     label = {
         "ticker": ticker, "iso_time": sig_iso,
         "window_min": "90", "y": "0",
-        "notes": "noise/hype; no move"
+        "notes": "noise/hype; no follow-through"
     }
 
-    # very rarely add a tiny counter-move spike for realism
+    # Rare, tiny "fake-out" spike
     spikes = None
-    if random.random() < 0.08:
+    if random.random() < 0.07:
         spike_t = base_t + timedelta(minutes=random.randint(20, 90))
-        from_open = random.uniform(-0.8, 0.8)
-        ten_min   = random.uniform(-0.5, 0.5)
+        from_open = random.uniform(-1.2, 1.2)
+        ten_min   = random.uniform(-0.7, 0.7)
         vol_mult  = random.uniform(0.8, 1.3)
         spikes = {
             "id": f"SPIKE-{ticker}-{int(spike_t.timestamp())}",
             "ticker": ticker,
             "spike_iso": spike_t.isoformat(),
-            "last": f"{random.uniform(5.0, 350.0):.2f}",
+            "last": f"{random.uniform(5.0, 450.0):.2f}",
             "from_open_pct": f"{from_open:.3f}",
             "from_prev_close_pct": f"{from_open*0.7:.3f}",
             "ten_min_pct": f"{ten_min:.3f}",
@@ -242,11 +285,13 @@ def append_row(path, row_list):
 def main():
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pos", type=int, default=120, help="number of positive examples")
-    ap.add_argument("--neg", type=int, default=160, help="number of negative examples")
-    ap.add_argument("--days", type=int, default=21, help="lookback days for timestamps")
-    ap.add_argument("--tickers", type=str, default=",".join(WATCH), help="comma list")
+    ap.add_argument("--pos", type=int, default=300, help="number of positive examples")
+    ap.add_argument("--neg", type=int, default=450, help="number of negative examples")
+    ap.add_argument("--days", type=int, default=30, help="lookback business days for timestamps")
+    ap.add_argument("--tickers", type=str, default=",".join(DEFAULT_TICKERS), help="comma-separated list")
     ap.add_argument("--seed", type=int, default=42)
+    # extra dials for meme-y names like TSLA/GME/AMC/PLTR
+    ap.add_argument("--meme_boost", type=float, default=0.35, help="0..1 fraction of examples that get meme bias")
     args = ap.parse_args()
 
     random.seed(args.seed)
@@ -258,8 +303,9 @@ def main():
     seen_ids = set()
     if os.path.exists(SIGNALS):
         with open(SIGNALS, newline="", encoding="utf-8") as f:
-            for i, row in enumerate(csv.DictReader(f)):
-                seen_ids.add(row.get("id",""))
+            for row in csv.DictReader(f):
+                if row.get("id"):
+                    seen_ids.add(row["id"])
 
     def write_signal(d):
         append_row(SIGNALS, [
@@ -283,7 +329,8 @@ def main():
     npos = 0
     while npos < args.pos:
         t = random.choice(tickers)
-        sig, spk, lab = make_positive_row(t)
+        prefer_meme = (t in {"TSLA","GME","AMC","PLTR","SMCI","COIN","HOOD","RIVN"}) and (random.random() < args.meme_boost)
+        sig, spk, lab = make_positive_row(t, prefer_meme=prefer_meme)
         if sig["id"] in seen_ids: continue
         write_signal(sig); seen_ids.add(sig["id"])
         write_spike(spk); write_label(lab)
@@ -293,7 +340,8 @@ def main():
     nneg = 0
     while nneg < args.neg:
         t = random.choice(tickers)
-        sig, spk, lab = make_negative_row(t)
+        meme_bias = (t in {"TSLA","GME","AMC","PLTR","SMCI","COIN","HOOD","RIVN"}) and (random.random() < args.meme_boost)
+        sig, spk, lab = make_negative_row(t, meme_bias=meme_bias)
         if sig["id"] in seen_ids: continue
         write_signal(sig); seen_ids.add(sig["id"])
         if spk: write_spike(spk)  # rare tiny/noisy spike
