@@ -30,10 +30,10 @@ OUTCOMES = "outcomes.csv"  # for summary/follow-up consistency
 
 # --- your rules (keep consistent with scanner) ---
 CLUSTER_WINDOW_MIN = 60
-REQUIRED_MATCHES = 2
-SINGLE_POST_MIN_SCORE = 40
-SINGLE_POST_MIN_COMMENTS = 10
-MIN_ABS_RET_PCT = 3.0  # label positive if |t+60m move| >= this
+REQUIRED_MATCHES = 1
+SINGLE_POST_MIN_SCORE = 5
+SINGLE_POST_MIN_COMMENTS = 2
+MIN_ABS_RET_PCT = 2.0  # label positive if |t+60m move| >= this
 LABEL_WINDOW_MIN = 90
 
 MEDIA_BLACKLIST = {
