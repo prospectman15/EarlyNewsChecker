@@ -3,30 +3,44 @@ name: seed-and-train
 on:
   workflow_dispatch:
     inputs:
-      pos:
-        description: "Positive examples"
-        required: true
-        default: "120"
-        type: string
-      neg:
-        description: "Negative examples"
-        required: true
-        default: "160"
-        type: string
-      days:
-        description: "Lookback days"
-        required: true
-        default: "21"
-        type: string
+      # --- seeding controls ---
+      pos:   { description: "Positive examples (can be 0)", default: "300", required: true, type: string }
+      neg:   { description: "Negative examples (can be 0)", default: "450", required: true, type: string }
+      days:  { description: "Lookback business days for timestamps", default: "30", required: true, type: string }
       tickers:
         description: "Tickers CSV"
+        default: "AMD,NVDA,BA,CRWD,CRWV,SRFM,UAL,DAL,AAL,TSLA,GME,AMC,PLTR,SMCI,COIN,HOOD,RIVN,AAPL,MSFT,META,GOOGL,TSM,NIO,SOFI,SQ,AFRM"
         required: true
-        default: "AMD,NVDA,BA,CRWD,CRWV,SRFM,UAL,DAL,AAL"
         type: string
-      seed:
-        description: "Random seed"
+      seed:  { description: "Random seed", default: "73", required: true, type: string }
+
+      # --- mix real history controls ---
+      do_mix_real:
+        description: "Also turn real outcomes into labels (yes/no)"
+        default: "yes"
         required: true
-        default: "42"
+        type: choice
+        options: ["yes","no"]
+      min_abs_ret_pct:
+        description: "Label y=1 if |t+60m return| ≥ this"
+        default: "3"
+        required: true
+        type: string
+      window:
+        description: "Label window (minutes) around alert"
+        default: "90"
+        required: true
+        type: string
+      include_backfill:
+        description: "Backfill minimal signals from alerts.csv? (yes/no)"
+        default: "yes"
+        required: true
+        type: choice
+        options: ["yes","no"]
+      since:
+        description: "Backfill only alerts after this UTC ISO (optional, e.g. 2025-07-01T00:00:00Z)"
+        default: ""
+        required: false
         type: string
 
 jobs:
@@ -36,19 +50,157 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
 
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+        with: { python-version: "3.11" }
 
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Seed dataset
+      # ---------- MIX REAL HISTORY (INLINE PY) ----------
+      - name: Outcomes → Labels (t+60m → y)
+        if: ${{ inputs.do_mix_real == 'yes' }}
+        shell: bash
+        run: |
+          python - << 'PY'
+          import os, csv
+          from datetime import datetime, timezone, timedelta
+
+          DATASET_DIR = "dataset"
+          ALERTS = "alerts.csv"
+          OUTCOMES = "outcomes.csv"
+          LABELS = os.path.join(DATASET_DIR, "labels.csv")
+
+          min_abs = float("${{ inputs.min_abs_ret_pct }}")
+          window  = int("${{ inputs.window }}")
+
+          def ensure_labels_header():
+              os.makedirs(DATASET_DIR, exist_ok=True)
+              if not os.path.exists(LABELS):
+                  with open(LABELS, "w", newline="", encoding="utf-8") as f:
+                      csv.writer(f).writerow(["ticker","iso_time","window_min","y","notes"])
+
+          def parse_iso(s: str) -> datetime:
+              try:
+                  if s.endswith("Z"):
+                      return datetime.fromisoformat(s[:-1]).replace(tzinfo=timezone.utc)
+                  return datetime.fromisoformat(s)
+              except Exception:
+                  return datetime.now(timezone.utc)
+
+          if not (os.path.exists(ALERTS) and os.path.exists(OUTCOMES)):
+              print("alerts.csv or outcomes.csv missing; skip outcomes->labels")
+              raise SystemExit(0)
+
+          # id -> (ticker, alert_iso)
+          alert_map = {}
+          with open(ALERTS, newline="", encoding="utf-8") as f:
+              for row in csv.DictReader(f):
+                  alert_map[row.get("id","")] = (row.get("ticker","").upper(), row.get("alert_iso",""))
+
+          ensure_labels_header()
+          existing = set()
+          if os.path.exists(LABELS):
+              with open(LABELS, newline="", encoding="utf-8") as f:
+                  for r in csv.reader(f):
+                      existing.add(tuple(r))
+
+          added = 0
+          with open(OUTCOMES, newline="", encoding="utf-8") as f:
+              for row in csv.DictReader(f):
+                  if row.get("label") != "t+60m":
+                      continue
+                  rid = row.get("id","")
+                  tkr, aiso = alert_map.get(rid, (row.get("ticker","").upper(), ""))
+                  if not aiso:
+                      # fallback: approx alert as due-60m
+                      due = parse_iso(row.get("due_iso",""))
+                      aiso = (due - timedelta(minutes=60)).isoformat()
+
+                  try: ret = abs(float(row.get("ret_pct","0") or "0"))
+                  except: ret = 0.0
+                  y = 1 if ret >= min_abs else 0
+                  lab = [tkr, aiso, str(window), str(y), f"auto from t+60m |Δ|={ret:.2f}% (id={rid})"]
+                  if tuple(lab) not in existing:
+                      with open(LABELS, "a", newline="", encoding="utf-8") as g:
+                          csv.writer(g).writerow(lab)
+                      existing.add(tuple(lab)); added += 1
+
+          print(f"Added {added} labels to {LABELS}")
+          PY
+
+      - name: Backfill minimal signals from alerts.csv (inline)
+        if: ${{ inputs.do_mix_real == 'yes' && inputs.include_backfill == 'yes' }}
+        shell: bash
+        run: |
+          python - << 'PY'
+          import os, csv
+          from datetime import datetime, timezone
+
+          DATASET_DIR = "dataset"
+          ALERTS = "alerts.csv"
+          SIGNALS = os.path.join(DATASET_DIR, "signals.csv")
+          SINCE = "${{ inputs.since }}"
+
+          def ensure_signals_header():
+              os.makedirs(DATASET_DIR, exist_ok=True)
+              if not os.path.exists(SIGNALS):
+                  with open(SIGNALS, "w", newline="", encoding="utf-8") as f:
+                      csv.writer(f).writerow([
+                          "id","ticker","signal_iso",
+                          "hits_in_window","score_max","score_sum","comments_max","comments_sum",
+                          "has_positive","has_crisis","has_earnings","has_primary_source_link",
+                          "titles_concat","links_concat",
+                          "score_max","comments_max","hits"
+                      ])
+
+          def parse_iso(s: str) -> datetime:
+              try:
+                  if s.endswith("Z"):
+                      return datetime.fromisoformat(s[:-1]).replace(tzinfo=timezone.utc)
+                  return datetime.fromisoformat(s)
+              except Exception:
+                  return datetime.now(timezone.utc)
+
+          if not os.path.exists(ALERTS):
+              print("alerts.csv missing; skip backfill"); raise SystemExit(0)
+
+          ensure_signals_header()
+
+          existing = set()
+          if os.path.exists(SIGNALS):
+              with open(SIGNALS, newline="", encoding="utf-8") as f:
+                  for r in csv.DictReader(f):
+                      existing.add(r.get("id",""))
+
+          cutoff = parse_iso(SINCE) if SINCE else None
+          added = 0
+          with open(ALERTS, newline="", encoding="utf-8") as f:
+              for row in csv.DictReader(f):
+                  aid = row.get("id",""); tkr = row.get("ticker","").upper(); iso = row.get("alert_iso","")
+                  if not aid or not tkr or not iso: continue
+                  if cutoff and parse_iso(iso) < cutoff: continue
+                  sid = f"MIN-{aid}"
+                  if sid in existing: continue
+                  hits = int(row.get("hits","0") or "0")
+                  with open(SIGNALS, "a", newline="", encoding="utf-8") as g:
+                      csv.writer(g).writerow([
+                          sid, tkr, iso,
+                          hits, 0, 0, 0, 0,
+                          0, 0, 0, 0,
+                          "", "",
+                          0, 0, hits
+                      ])
+                  existing.add(sid); added += 1
+
+          print(f"Backfilled {added} minimal signals into {SIGNALS}")
+          PY
+
+      # ---------- SEED SYNTHETIC (you already have tools/seed_dataset.py) ----------
+      - name: Seed dataset (synthetic)
         run: |
           python tools/seed_dataset.py \
             --pos "${{ inputs.pos }}" \
@@ -62,7 +214,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f dataset/*
-          git commit -m "seed: +${{ inputs.pos }} pos / +${{ inputs.neg }} neg" || echo "Nothing to commit"
+          git commit -m "seed+mix: pos=${{ inputs.pos }} neg=${{ inputs.neg }} (mix=${{ inputs.do_mix_real }})" || echo "Nothing to commit"
           git push || true
 
       - name: Train model
@@ -71,5 +223,5 @@ jobs:
       - name: Commit model
         run: |
           git add -f model/model.pkl model/metrics.json || true
-          git commit -m "model: update after seeding" || echo "Nothing to commit"
+          git commit -m "model: update after seed+mix" || echo "Nothing to commit"
           git push || true
