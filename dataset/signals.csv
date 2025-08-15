@@ -9,3 +9,353 @@ SIG-AAL-20250806-1600,AAL,2025-08-06T16:00:00Z,2,40,75,18,30,0,0,0,0,"Is AAL abo
 SIG-CRWD-20250806-1530,CRWD,2025-08-06T15:30:00Z,2,28,55,10,20,0,0,0,0,"CrowdStrike ‘bad news incoming’ (no links) || speculation thread","https://www.reddit.com/r/wallstreetbets || https://www.reddit.com/r/stocks",28,10,2
 SIG-NVDA-20250809-1502,NVDA,2025-08-09T15:02:00Z,3,60,120,25,55,0,0,1,1,"NVIDIA files 8-K; small accounting classification update (non-cash) || minor IR note","https://sec.gov/Archives/edgar/data/... || https://investor.nvidia.com || https://www.reddit.com/r/StockMarket",60,25,3
 SIG-BA-20250809-1624,BA,2025-08-09T16:24:00Z,2,45,90,22,40,0,1,0,0,"‘Hearing a problem’ with unspecified Boeing test (no details) || unverified claim","https://www.reddit.com/r/aviation || https://www.reddit.com/r/StockMarket",45,22,2
+SEED-CRWV-1754586660,CRWV,2025-08-07T17:11:00+00:00,3,156,224,135,299,1,0,1,1,pre-announce upside || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,156,135,3
+SEED-UAL-1755185760,UAL,2025-08-14T15:36:00+00:00,4,131,204,160,318,1,0,1,1,results strong; margin up || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,131,160,4
+SEED-AAL-1754409900,AAL,2025-08-05T16:05:00+00:00,2,100,198,143,216,1,0,1,1,EPS surprise; guide above || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,100,143,2
+SEED-UAL-1755197160,UAL,2025-08-14T18:46:00+00:00,2,172,264,112,239,1,0,0,0,upgrade; price target raised || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://twitter.com/someacct,172,112,2
+SEED-DAL-1755093540,DAL,2025-08-13T13:59:00+00:00,4,146,315,128,308,1,0,1,1,earnings beat; revenue above consensus || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,146,128,4
+SEED-UAL-1754330940,UAL,2025-08-04T18:09:00+00:00,2,132,216,156,331,1,0,0,1,guidance raised per leak || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com,132,156,2
+SEED-BA-1754670240,BA,2025-08-08T16:24:00+00:00,2,206,349,98,272,1,0,0,0,upgrade; price target raised || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://twitter.com/someacct,206,98,2
+SEED-SRFM-1754677740,SRFM,2025-08-08T18:29:00+00:00,3,185,235,158,209,0,1,0,1,emergency landing; FAA update incoming || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,185,158,3
+SEED-DAL-1755198000,DAL,2025-08-14T19:00:00+00:00,3,213,293,152,240,1,0,0,0,guidance raised per leak || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks,213,152,3
+SEED-AAL-1755109860,AAL,2025-08-13T18:31:00+00:00,2,206,351,142,309,1,0,0,0,large call flow; breakout chatter || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://twitter.com/someacct,206,142,2
+SEED-UAL-1754059620,UAL,2025-08-01T14:47:00+00:00,2,207,326,115,205,1,0,0,0,upgrade; price target raised || upgrade; price target raised,https://www.reddit.com/r/stocks || https://twitter.com/someacct,207,115,2
+SEED-BA-1754416020,BA,2025-08-05T17:47:00+00:00,3,106,296,114,193,1,0,1,1,pre-announce upside || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com,106,114,3
+SEED-UAL-1755178500,UAL,2025-08-14T13:35:00+00:00,2,219,293,63,116,1,0,0,1,major partnership rumored; PR expected || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.businesswire.com,219,63,2
+SEED-CRWV-1755192000,CRWV,2025-08-14T17:20:00+00:00,2,109,295,96,175,1,0,0,0,large call flow; breakout chatter || guidance raised per leak,https://www.reddit.com/r/stocks,109,96,2
+SEED-AMD-1754504580,AMD,2025-08-06T18:23:00+00:00,2,188,274,113,158,1,0,1,1,earnings beat; revenue above consensus || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com,188,113,2
+SEED-CRWV-1754929620,CRWV,2025-08-11T16:27:00+00:00,2,104,180,128,308,1,0,0,0,large call flow; breakout chatter || guidance raised per leak,https://www.reddit.com/r/stocks,104,128,2
+SEED-SRFM-1754492880,SRFM,2025-08-06T15:08:00+00:00,3,214,345,144,281,1,0,0,1,major partnership rumored; PR expected || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,214,144,3
+SEED-SRFM-1755182460,SRFM,2025-08-14T14:41:00+00:00,3,123,305,83,170,1,0,1,1,EPS surprise; guide above || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,123,83,3
+SEED-SRFM-1754573700,SRFM,2025-08-07T13:35:00+00:00,4,148,240,72,205,1,0,0,0,large call flow; breakout chatter || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks,148,72,4
+SEED-NVDA-1754676600,NVDA,2025-08-08T18:10:00+00:00,4,117,302,103,279,1,0,1,1,EPS surprise; guide above || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,117,103,4
+SEED-UAL-1754492280,UAL,2025-08-06T14:58:00+00:00,4,188,260,120,296,1,0,0,1,upgrade; price target raised || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.businesswire.com,188,120,4
+SEED-AMD-1754941440,AMD,2025-08-11T19:44:00+00:00,4,185,266,149,320,1,0,0,1,major partnership rumored; PR expected || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.businesswire.com,185,149,4
+SEED-UAL-1755199860,UAL,2025-08-14T19:31:00+00:00,2,183,324,134,179,1,0,1,1,earnings beat; revenue above consensus || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.businesswire.com,183,134,2
+SEED-CRWD-1754920200,CRWD,2025-08-11T13:50:00+00:00,2,130,280,129,189,1,0,1,1,results strong; margin up || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,130,129,2
+SEED-UAL-1755200040,UAL,2025-08-14T19:34:00+00:00,3,125,221,97,248,1,0,1,1,pre-announce upside || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,125,97,3
+SEED-CRWD-1754680920,CRWD,2025-08-08T19:22:00+00:00,3,185,320,89,222,1,0,0,1,upgrade; price target raised || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.prnewswire.com,185,89,3
+SEED-CRWD-1754064060,CRWD,2025-08-01T16:01:00+00:00,3,87,210,112,246,1,0,1,1,results strong; margin up || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com,87,112,3
+SEED-SRFM-1755022260,SRFM,2025-08-12T18:11:00+00:00,2,167,271,121,205,0,1,0,1,production issue; recall chatter || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,167,121,2
+SEED-UAL-1754487300,UAL,2025-08-06T13:35:00+00:00,2,173,338,75,132,1,0,1,1,earnings beat; revenue above consensus || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com,173,75,2
+SEED-AAL-1754066460,AAL,2025-08-01T16:41:00+00:00,2,173,316,108,157,1,0,0,1,upgrade; price target raised || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,173,108,2
+SEED-AAL-1754932920,AAL,2025-08-11T17:22:00+00:00,4,132,192,84,131,1,0,0,1,analyst reiterates buy; target hiked || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,132,84,4
+SEED-CRWV-1754067420,CRWV,2025-08-01T16:57:00+00:00,4,163,295,134,233,1,0,0,1,major partnership rumored; PR expected || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,163,134,4
+SEED-AMD-1755110460,AMD,2025-08-13T18:41:00+00:00,4,111,167,155,278,1,0,1,1,pre-announce upside || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,111,155,4
+SEED-SRFM-1754503620,SRFM,2025-08-06T18:07:00+00:00,2,192,278,124,206,0,1,0,0,production issue; recall chatter || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://twitter.com/someacct,192,124,2
+SEED-BA-1755186720,BA,2025-08-14T15:52:00+00:00,3,160,360,101,279,1,0,1,1,EPS surprise; guide above || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,160,101,3
+SEED-NVDA-1754508540,NVDA,2025-08-06T19:29:00+00:00,3,135,247,92,136,1,0,0,0,upgrade; price target raised || major partnership rumored; PR expected,https://www.reddit.com/r/stocks,135,92,3
+SEED-UAL-1755107400,UAL,2025-08-13T17:50:00+00:00,4,147,280,108,215,1,0,1,1,EPS surprise; guide above || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,147,108,4
+SEED-BA-1754677140,BA,2025-08-08T18:19:00+00:00,3,213,286,93,198,1,0,0,0,guidance raised per leak || large call flow; breakout chatter,https://www.reddit.com/r/stocks,213,93,3
+SEED-AMD-1755093000,AMD,2025-08-13T13:50:00+00:00,2,150,315,99,274,1,0,0,0,large call flow; breakout chatter || large call flow; breakout chatter,https://www.reddit.com/r/stocks,150,99,2
+SEED-UAL-1754400900,UAL,2025-08-05T13:35:00+00:00,4,134,189,155,207,1,0,0,1,analyst reiterates buy; target hiked || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,134,155,4
+SEED-DAL-1754936040,DAL,2025-08-11T18:14:00+00:00,4,191,257,139,284,1,0,0,0,major partnership rumored; PR expected || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks,191,139,4
+SEED-NVDA-1754941200,NVDA,2025-08-11T19:40:00+00:00,2,101,273,106,179,0,1,0,1,major outage report; cyber incident || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,101,106,2
+SEED-UAL-1754672760,UAL,2025-08-08T17:06:00+00:00,2,129,329,80,228,1,0,1,1,EPS surprise; guide above || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,129,80,2
+SEED-CRWV-1754491980,CRWV,2025-08-06T14:53:00+00:00,2,120,225,143,230,1,0,1,1,results strong; margin up || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,120,143,2
+SEED-UAL-1754919300,UAL,2025-08-11T13:35:00+00:00,4,81,266,141,234,0,1,0,0,CEO resign rumor || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks,81,141,4
+SEED-AMD-1755182880,AMD,2025-08-14T14:48:00+00:00,2,215,300,150,253,1,0,0,1,large call flow; breakout chatter || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,215,150,2
+SEED-SRFM-1755027900,SRFM,2025-08-12T19:45:00+00:00,2,96,167,127,272,1,0,0,1,analyst reiterates buy; target hiked || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,96,127,2
+SEED-NVDA-1754664540,NVDA,2025-08-08T14:49:00+00:00,2,120,217,63,191,1,0,0,0,major partnership rumored; PR expected || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks,120,63,2
+SEED-NVDA-1754411400,NVDA,2025-08-05T16:30:00+00:00,3,118,269,134,288,0,1,0,1,emergency landing; FAA update incoming || production issue; recall chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,118,134,3
+SEED-AMD-1755196260,AMD,2025-08-14T18:31:00+00:00,4,186,318,96,187,1,0,1,1,EPS surprise; guide above || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,186,96,4
+SEED-BA-1755007080,BA,2025-08-12T13:58:00+00:00,3,84,145,77,247,1,0,1,1,pre-announce upside || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,84,77,3
+SEED-SRFM-1754500560,SRFM,2025-08-06T17:16:00+00:00,3,83,235,94,206,0,1,0,0,major outage report; cyber incident || CEO resign rumor,https://www.reddit.com/r/stocks,83,94,3
+SEED-UAL-1755092880,UAL,2025-08-13T13:48:00+00:00,3,157,352,122,286,1,0,1,1,results strong; margin up || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,157,122,3
+SEED-DAL-1754678040,DAL,2025-08-08T18:34:00+00:00,4,98,160,126,303,1,0,0,0,upgrade; price target raised || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://twitter.com/someacct,98,126,4
+SEED-AAL-1755104940,AAL,2025-08-13T17:09:00+00:00,4,176,366,147,270,1,0,1,1,EPS surprise; guide above || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,176,147,4
+SEED-DAL-1755008940,DAL,2025-08-12T14:29:00+00:00,4,195,363,144,191,1,0,0,1,analyst reiterates buy; target hiked || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.prnewswire.com,195,144,4
+SEED-NVDA-1754508720,NVDA,2025-08-06T19:32:00+00:00,3,208,344,95,157,1,0,0,0,upgrade; price target raised || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://twitter.com/someacct,208,95,3
+SEED-NVDA-1754329140,NVDA,2025-08-04T17:39:00+00:00,2,175,365,65,128,0,1,0,0,production issue; recall chatter || CEO resign rumor,https://www.reddit.com/r/stocks || https://twitter.com/someacct,175,65,2
+SEED-AAL-1755012900,AAL,2025-08-12T15:35:00+00:00,4,129,326,123,227,1,0,0,0,major partnership rumored; PR expected || upgrade; price target raised,https://www.reddit.com/r/stocks,129,123,4
+SEED-BA-1755012720,BA,2025-08-12T15:32:00+00:00,3,168,223,89,195,1,0,0,1,large call flow; breakout chatter || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,168,89,3
+SEED-SRFM-1754326980,SRFM,2025-08-04T17:03:00+00:00,3,206,392,151,295,0,1,0,1,major outage report; cyber incident || production issue; recall chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com,206,151,3
+SEED-SRFM-1754055300,SRFM,2025-08-01T13:35:00+00:00,2,203,399,80,197,0,1,0,1,production issue; recall chatter || CEO resign rumor,https://www.reddit.com/r/stocks || https://www.businesswire.com,203,80,2
+SEED-CRWD-1754407560,CRWD,2025-08-05T15:26:00+00:00,3,137,330,107,250,0,1,0,0,major outage report; cyber incident || CEO resign rumor,https://www.reddit.com/r/stocks,137,107,3
+SEED-BA-1754919840,BA,2025-08-11T13:44:00+00:00,2,191,384,131,173,1,0,0,1,analyst reiterates buy; target hiked || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,191,131,2
+SEED-NVDA-1755186000,NVDA,2025-08-14T15:40:00+00:00,2,112,184,67,158,1,0,1,1,results strong; margin up || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,112,67,2
+SEED-CRWD-1754579220,CRWD,2025-08-07T15:07:00+00:00,4,143,311,115,268,0,1,0,0,CEO resign rumor || production issue; recall chatter,https://www.reddit.com/r/stocks,143,115,4
+SEED-NVDA-1754315580,NVDA,2025-08-04T13:53:00+00:00,3,167,281,157,323,1,0,0,0,analyst reiterates buy; target hiked || guidance raised per leak,https://www.reddit.com/r/stocks,167,157,3
+SEED-UAL-1755011880,UAL,2025-08-12T15:18:00+00:00,2,84,265,153,224,1,0,1,1,results strong; margin up || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,84,153,2
+SEED-NVDA-1755093480,NVDA,2025-08-13T13:58:00+00:00,2,142,274,77,184,0,1,0,0,CEO resign rumor || production issue; recall chatter,https://www.reddit.com/r/stocks,142,77,2
+SEED-AMD-1755025920,AMD,2025-08-12T19:12:00+00:00,2,118,201,73,226,1,0,0,1,large call flow; breakout chatter || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,118,73,2
+SEED-CRWD-1755024780,CRWD,2025-08-12T18:53:00+00:00,2,163,235,81,201,0,1,0,1,emergency landing; FAA update incoming || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,163,81,2
+SEED-DAL-1754663880,DAL,2025-08-08T14:38:00+00:00,3,167,338,141,206,1,0,1,1,pre-announce upside || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,167,141,3
+SEED-DAL-1754504940,DAL,2025-08-06T18:29:00+00:00,4,159,279,109,282,0,1,0,1,major outage report; cyber incident || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,159,109,4
+SEED-CRWD-1755014820,CRWD,2025-08-12T16:07:00+00:00,3,102,248,94,190,0,1,0,0,emergency landing; FAA update incoming || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks,102,94,3
+SEED-NVDA-1754507220,NVDA,2025-08-06T19:07:00+00:00,2,120,229,98,230,1,0,1,1,EPS surprise; guide above || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com,120,98,2
+SEED-CRWD-1754678880,CRWD,2025-08-08T18:48:00+00:00,2,100,160,128,298,1,0,0,0,guidance raised per leak || major partnership rumored; PR expected,https://www.reddit.com/r/stocks,100,128,2
+SEED-SRFM-1755107100,SRFM,2025-08-13T17:45:00+00:00,4,121,320,71,142,1,0,0,1,large call flow; breakout chatter || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,121,71,4
+SEED-AMD-1755108540,AMD,2025-08-13T18:09:00+00:00,3,96,229,131,286,0,1,0,0,production issue; recall chatter || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks,96,131,3
+SEED-UAL-1754938500,UAL,2025-08-11T18:55:00+00:00,2,105,194,124,263,1,0,0,0,upgrade; price target raised || upgrade; price target raised,https://www.reddit.com/r/stocks,105,124,2
+SEED-UAL-1754492040,UAL,2025-08-06T14:54:00+00:00,2,162,248,127,253,1,0,1,1,results strong; margin up || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,162,127,2
+SEED-CRWV-1754070300,CRWV,2025-08-01T17:45:00+00:00,4,206,325,76,161,1,0,1,1,EPS surprise; guide above || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com,206,76,4
+SEED-CRWD-1754938500,CRWD,2025-08-11T18:55:00+00:00,2,144,318,70,225,1,0,1,1,results strong; margin up || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,144,70,2
+SEED-CRWD-1754413320,CRWD,2025-08-05T17:02:00+00:00,3,205,274,83,206,1,0,1,1,earnings beat; revenue above consensus || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,205,83,3
+SEED-DAL-1754573700,DAL,2025-08-07T13:35:00+00:00,4,205,304,147,291,0,1,0,0,production issue; recall chatter || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks,205,147,4
+SEED-AMD-1754065320,AMD,2025-08-01T16:22:00+00:00,2,210,271,78,165,1,0,1,1,pre-announce upside || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,210,78,2
+SEED-BA-1754488860,BA,2025-08-06T14:01:00+00:00,2,114,278,158,201,1,0,0,0,upgrade; price target raised || upgrade; price target raised,https://www.reddit.com/r/stocks,114,158,2
+SEED-AMD-1754410860,AMD,2025-08-05T16:21:00+00:00,3,87,202,160,222,0,1,0,1,CEO resign rumor || production issue; recall chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com,87,160,3
+SEED-SRFM-1755005700,SRFM,2025-08-12T13:35:00+00:00,2,175,308,122,298,1,0,0,1,guidance raised per leak || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com,175,122,2
+SEED-AAL-1754928300,AAL,2025-08-11T16:05:00+00:00,3,122,262,113,278,0,1,0,1,major outage report; cyber incident || CEO resign rumor,https://www.reddit.com/r/stocks || https://www.businesswire.com,122,113,3
+SEED-UAL-1754935680,UAL,2025-08-11T18:08:00+00:00,2,178,264,65,176,1,0,1,1,results strong; margin up || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,178,65,2
+SEED-AAL-1754924880,AAL,2025-08-11T15:08:00+00:00,4,216,408,72,120,1,0,1,1,earnings beat; revenue above consensus || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,216,72,4
+SEED-BA-1754421840,BA,2025-08-05T19:24:00+00:00,3,167,255,60,222,0,1,0,1,major outage report; cyber incident || production issue; recall chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com,167,60,3
+SEED-CRWV-1754588220,CRWV,2025-08-07T17:37:00+00:00,3,95,209,102,227,1,0,0,0,major partnership rumored; PR expected || upgrade; price target raised,https://www.reddit.com/r/stocks,95,102,3
+SEED-BA-1754670420,BA,2025-08-08T16:27:00+00:00,4,188,334,71,143,1,0,0,1,guidance raised per leak || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,188,71,4
+SEED-AAL-1754400900,AAL,2025-08-05T13:35:00+00:00,2,183,313,64,141,1,0,0,1,analyst reiterates buy; target hiked || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,183,64,2
+SEED-AAL-1754660100,AAL,2025-08-08T13:35:00+00:00,3,178,331,149,287,1,0,0,0,guidance raised per leak || large call flow; breakout chatter,https://www.reddit.com/r/stocks,178,149,3
+SEED-CRWD-1754503560,CRWD,2025-08-06T18:06:00+00:00,3,155,283,117,211,1,0,1,1,pre-announce upside || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com,155,117,3
+SEED-BA-1754576100,BA,2025-08-07T14:15:00+00:00,2,204,352,148,271,1,0,1,1,results strong; margin up || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,204,148,2
+SEED-AMD-1754937300,AMD,2025-08-11T18:35:00+00:00,3,104,182,113,256,1,0,0,0,upgrade; price target raised || guidance raised per leak,https://www.reddit.com/r/stocks || https://twitter.com/someacct,104,113,3
+SEED-UAL-1755008100,UAL,2025-08-12T14:15:00+00:00,2,88,201,60,157,1,0,0,1,upgrade; price target raised || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,88,60,2
+SEED-DAL-1755200700,DAL,2025-08-14T19:45:00+00:00,3,136,286,121,182,1,0,1,1,pre-announce upside || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com,136,121,3
+SEED-AAL-1754066400,AAL,2025-08-01T16:40:00+00:00,2,140,237,150,317,1,0,1,1,EPS surprise; guide above || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,140,150,2
+SEED-AAL-1754072940,AAL,2025-08-01T18:29:00+00:00,3,204,328,93,148,1,0,0,0,analyst reiterates buy; target hiked || guidance raised per leak,https://www.reddit.com/r/stocks,204,93,3
+SEED-BA-1754416260,BA,2025-08-05T17:51:00+00:00,4,107,211,119,294,1,0,1,1,earnings beat; revenue above consensus || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,107,119,4
+SEED-AAL-1754414280,AAL,2025-08-05T17:18:00+00:00,4,160,227,70,184,1,0,0,0,large call flow; breakout chatter || major partnership rumored; PR expected,https://www.reddit.com/r/stocks,160,70,4
+SEED-BA-1754334180,BA,2025-08-04T19:03:00+00:00,3,126,275,128,300,1,0,0,1,large call flow; breakout chatter || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,126,128,3
+SEED-DAL-1755187620,DAL,2025-08-14T16:07:00+00:00,2,108,186,126,281,1,0,1,1,pre-announce upside || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,108,126,2
+SEED-UAL-1754586120,UAL,2025-08-07T17:02:00+00:00,4,144,225,151,233,1,0,0,0,large call flow; breakout chatter || major partnership rumored; PR expected,https://www.reddit.com/r/stocks,144,151,4
+SEED-AAL-1754591220,AAL,2025-08-07T18:27:00+00:00,2,214,377,95,146,1,0,0,0,major partnership rumored; PR expected || guidance raised per leak,https://www.reddit.com/r/stocks || https://twitter.com/someacct,214,95,2
+SEED-UAL-1754064720,UAL,2025-08-01T16:12:00+00:00,3,109,269,84,218,0,1,0,1,emergency landing; FAA update incoming || production issue; recall chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,109,84,3
+SEED-AMD-1754056500,AMD,2025-08-01T13:55:00+00:00,2,219,372,101,204,1,0,0,1,large call flow; breakout chatter || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,219,101,2
+SEED-AMD-1754661540,AMD,2025-08-08T13:59:00+00:00,4,92,272,82,196,1,0,0,1,upgrade; price target raised || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com,92,82,4
+SEED-CRWV-1754406900,CRWV,2025-08-05T15:15:00+00:00,4,219,396,129,200,1,0,0,0,guidance raised per leak || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks,219,129,4
+SEED-AAL-1754410320,AAL,2025-08-05T16:12:00+00:00,4,135,278,104,213,0,1,0,1,major outage report; cyber incident || production issue; recall chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com,135,104,4
+SEED-BA-1755014640,BA,2025-08-12T16:04:00+00:00,3,203,305,69,150,1,0,1,1,pre-announce upside || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,203,69,3
+SEED-SRFM-1754423100,SRFM,2025-08-05T19:45:00+00:00,2,112,207,155,223,1,0,1,1,pre-announce upside || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,112,155,2
+SEED-AAL-1754493000,AAL,2025-08-06T15:10:00+00:00,3,110,290,60,192,1,0,0,1,analyst reiterates buy; target hiked || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,110,60,3
+SEED-AAL-1754587980,AAL,2025-08-07T17:33:00+00:00,3,218,280,156,221,1,0,1,1,results strong; margin up || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,218,156,3
+SEED-BA-1754500320,BA,2025-08-06T17:12:00+00:00,4,84,273,66,126,1,0,1,1,pre-announce upside || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,84,66,4
+SEED-SRFM-1754487300,SRFM,2025-08-06T13:35:00+00:00,4,120,174,149,227,1,0,0,1,guidance raised per leak || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,120,149,4
+SEED-BA-1754509500,BA,2025-08-06T19:45:00+00:00,3,217,293,101,178,1,0,1,1,results strong; margin up || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com,217,101,3
+SEED-DAL-1754923320,DAL,2025-08-11T14:42:00+00:00,2,103,175,120,274,1,0,1,1,EPS surprise; guide above || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com,103,120,2
+SEED-AAL-1754584980,AAL,2025-08-07T16:43:00+00:00,3,145,268,82,234,0,1,0,1,CEO resign rumor || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://www.prnewswire.com,145,82,3
+SEED-SRFM-1755105180,SRFM,2025-08-13T17:13:00+00:00,2,206,351,84,219,0,1,0,0,production issue; recall chatter || production issue; recall chatter,https://www.reddit.com/r/stocks || https://twitter.com/someacct,206,84,2
+SEED-SRFM-1754408940,SRFM,2025-08-05T15:49:00+00:00,3,197,385,140,272,1,0,1,1,earnings beat; revenue above consensus || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com,197,140,3
+SEED-BA-1754076180,BA,2025-08-01T19:23:00+00:00,4,176,249,124,214,0,1,0,1,emergency landing; FAA update incoming || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,176,124,4
+SEED-AMD-1754077500,AMD,2025-08-01T19:45:00+00:00,3,124,281,118,295,0,1,0,1,major outage report; cyber incident || CEO resign rumor,https://www.reddit.com/r/stocks || https://www.prnewswire.com,124,118,3
+SEED-CRWV-1755185280,CRWV,2025-08-14T15:28:00+00:00,4,162,349,131,176,1,0,1,1,earnings beat; revenue above consensus || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,162,131,4
+SEED-AAL-1754923860,AAL,2025-08-11T14:51:00+00:00,4,109,224,66,221,1,0,1,1,earnings beat; revenue above consensus || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,109,66,4
+SEED-BA-1755178620,BA,2025-08-14T13:37:00+00:00,3,99,167,160,212,1,0,0,1,guidance raised per leak || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.prnewswire.com,99,160,3
+SEED-UAL-1754932440,UAL,2025-08-11T17:14:00+00:00,3,103,225,68,108,1,0,1,1,results strong; margin up || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,103,68,3
+SEED-DAL-1754062200,DAL,2025-08-01T15:30:00+00:00,2,88,161,117,174,1,0,0,1,guidance raised per leak || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,88,117,2
+SEED-CRWV-1755027900,CRWV,2025-08-12T19:45:00+00:00,3,165,258,66,228,1,0,0,1,major partnership rumored; PR expected || major partnership rumored; PR expected,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,165,66,3
+SEED-SRFM-1755186720,SRFM,2025-08-14T15:52:00+00:00,3,98,210,70,179,0,1,0,0,CEO resign rumor || major outage report; cyber incident,https://www.reddit.com/r/stocks,98,70,3
+SEED-AMD-1754076180,AMD,2025-08-01T19:23:00+00:00,3,178,369,137,185,1,0,1,1,EPS surprise; guide above || analyst reiterates buy; target hiked,https://www.reddit.com/r/stocks || https://www.businesswire.com || https://twitter.com/someacct,178,137,3
+SEED-BA-1754660100,BA,2025-08-08T13:35:00+00:00,2,128,315,81,146,1,0,0,1,guidance raised per leak || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,128,81,2
+SEED-BA-1754930940,BA,2025-08-11T16:49:00+00:00,3,130,192,151,286,0,1,0,0,production issue; recall chatter || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks,130,151,3
+SEED-UAL-1754595660,UAL,2025-08-07T19:41:00+00:00,4,154,294,62,213,1,0,0,0,large call flow; breakout chatter || upgrade; price target raised,https://www.reddit.com/r/stocks || https://twitter.com/someacct,154,62,4
+SEED-CRWV-1754680380,CRWV,2025-08-08T19:13:00+00:00,3,173,288,96,213,1,0,1,1,earnings beat; revenue above consensus || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.prnewswire.com,173,96,3
+SEED-SRFM-1755100920,SRFM,2025-08-13T16:02:00+00:00,4,217,271,76,171,1,0,0,1,analyst reiterates buy; target hiked || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,217,76,4
+SEED-BA-1754318940,BA,2025-08-04T14:49:00+00:00,4,185,249,60,197,1,0,0,1,upgrade; price target raised || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/ || https://twitter.com/someacct,185,60,4
+SEED-BA-1754419200,BA,2025-08-05T18:40:00+00:00,3,209,316,94,134,1,0,1,1,earnings beat; revenue above consensus || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,209,94,3
+SEED-AAL-1755027360,AAL,2025-08-12T19:36:00+00:00,2,97,239,146,195,0,1,0,0,CEO resign rumor || major outage report; cyber incident,https://www.reddit.com/r/stocks || https://twitter.com/someacct,97,146,2
+SEED-UAL-1754507460,UAL,2025-08-06T19:11:00+00:00,2,166,266,132,292,1,0,0,1,analyst reiterates buy; target hiked || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,166,132,2
+SEED-AMD-1754335260,AMD,2025-08-04T19:21:00+00:00,3,184,256,83,204,0,1,0,0,CEO resign rumor || production issue; recall chatter,https://www.reddit.com/r/stocks || https://twitter.com/someacct,184,83,3
+SEED-AMD-1754661780,AMD,2025-08-08T14:03:00+00:00,4,85,234,126,206,1,0,1,1,earnings beat; revenue above consensus || upgrade; price target raised,https://www.reddit.com/r/stocks || https://www.businesswire.com,85,126,4
+SEED-AAL-1754487300,AAL,2025-08-06T13:35:00+00:00,2,150,247,147,246,0,1,0,0,major outage report; cyber incident || emergency landing; FAA update incoming,https://www.reddit.com/r/stocks,150,147,2
+SEED-CRWV-1754670000,CRWV,2025-08-08T16:20:00+00:00,2,117,282,121,230,1,0,1,1,results strong; margin up || large call flow; breakout chatter,https://www.reddit.com/r/stocks || https://www.prnewswire.com || https://twitter.com/someacct,117,121,2
+SEED-AAL-1754408940,AAL,2025-08-05T15:49:00+00:00,3,112,205,152,262,1,0,0,1,major partnership rumored; PR expected || guidance raised per leak,https://www.reddit.com/r/stocks || https://www.sec.gov/Archives/edgar/,112,152,3
+SEED-CRWV-1755024060,CRWV,2025-08-12T18:41:00+00:00,4,178,318,158,218,1,0,0,0,large call flow; breakout chatter || major partnership rumored; PR expected,https://www.reddit.com/r/stocks,178,158,4
+SEED-CRWV-1754496480,CRWV,2025-08-06T16:08:00+00:00,2,40,74,10,27,0,0,0,0,anyone buying this dip?? || anyone buying this dip??,https://www.reddit.com/r/stocks,40,10,2
+SEED-UAL-1754405160,UAL,2025-08-05T14:46:00+00:00,2,42,61,16,36,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,42,16,2
+SEED-NVDA-1754489760,NVDA,2025-08-06T14:16:00+00:00,3,43,73,18,33,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,43,18,3
+SEED-CRWV-1754319300,CRWV,2025-08-04T14:55:00+00:00,3,55,83,14,20,0,0,0,0,random DD thread (no links) || anyone buying this dip??,https://www.reddit.com/r/stocks,55,14,3
+SEED-UAL-1754665260,UAL,2025-08-08T15:01:00+00:00,3,34,44,21,37,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,34,21,3
+SEED-CRWV-1754920500,CRWV,2025-08-11T13:55:00+00:00,3,60,100,23,30,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,60,23,3
+SEED-SRFM-1754488380,SRFM,2025-08-06T13:53:00+00:00,3,54,92,20,28,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,54,20,3
+SEED-AMD-1754500860,AMD,2025-08-06T17:21:00+00:00,3,55,71,20,42,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,55,20,3
+SEED-UAL-1754678700,UAL,2025-08-08T18:45:00+00:00,2,26,59,28,44,0,0,0,0,chart looks bullish AF || anyone buying this dip??,https://www.reddit.com/r/stocks,26,28,2
+SEED-UAL-1754679720,UAL,2025-08-08T19:02:00+00:00,3,46,66,19,33,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,46,19,3
+SEED-SRFM-1755009840,SRFM,2025-08-12T14:44:00+00:00,2,36,48,18,40,0,0,0,0,chart looks bullish AF || random DD thread (no links),https://www.reddit.com/r/stocks,36,18,2
+SEED-DAL-1754059020,DAL,2025-08-01T14:37:00+00:00,3,22,53,10,22,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,22,10,3
+SEED-CRWD-1754592300,CRWD,2025-08-07T18:45:00+00:00,3,36,68,9,23,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks,36,9,3
+SEED-AAL-1754401200,AAL,2025-08-05T13:40:00+00:00,2,21,60,18,41,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,21,18,2
+SEED-DAL-1754499480,DAL,2025-08-06T16:58:00+00:00,3,58,69,24,30,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks,58,24,3
+SEED-CRWV-1755018180,CRWV,2025-08-12T17:03:00+00:00,3,20,49,19,28,0,0,0,0,is a squeeze coming? vague rumors || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,20,19,3
+SEED-AAL-1754673840,AAL,2025-08-08T17:24:00+00:00,2,52,77,24,43,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,52,24,2
+SEED-SRFM-1754501160,SRFM,2025-08-06T17:26:00+00:00,3,56,92,9,29,0,0,0,0,random DD thread (no links) || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,56,9,3
+SEED-AMD-1755106740,AMD,2025-08-13T17:39:00+00:00,2,56,74,13,26,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,56,13,2
+SEED-DAL-1755024120,DAL,2025-08-12T18:42:00+00:00,3,58,83,22,43,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,58,22,3
+SEED-CRWV-1755093300,CRWV,2025-08-13T13:55:00+00:00,2,46,69,8,28,0,0,0,0,random DD thread (no links) || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,46,8,2
+SEED-AMD-1754499540,AMD,2025-08-06T16:59:00+00:00,2,26,52,24,48,0,0,0,0,anyone buying this dip?? || anyone buying this dip??,https://www.reddit.com/r/stocks || https://twitter.com/someacct,26,24,2
+SEED-BA-1755017280,BA,2025-08-12T16:48:00+00:00,3,28,54,19,41,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,28,19,3
+SEED-DAL-1754661660,DAL,2025-08-08T14:01:00+00:00,3,44,67,16,28,0,0,0,0,anyone buying this dip?? || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,44,16,3
+SEED-CRWV-1754919300,CRWV,2025-08-11T13:35:00+00:00,3,38,61,13,26,0,0,0,0,chart looks bullish AF || random DD thread (no links),https://www.reddit.com/r/stocks || https://twitter.com/someacct,38,13,3
+SEED-CRWD-1754422320,CRWD,2025-08-05T19:32:00+00:00,3,46,59,22,31,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks,46,22,3
+SEED-SRFM-1754585940,SRFM,2025-08-07T16:59:00+00:00,2,47,80,27,34,0,0,0,0,chart looks bullish AF || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,47,27,2
+SEED-BA-1754586000,BA,2025-08-07T17:00:00+00:00,3,30,65,23,31,0,0,0,0,to the moon!! no source || to the moon!! no source,https://www.reddit.com/r/stocks,30,23,3
+SEED-DAL-1755192360,DAL,2025-08-14T17:26:00+00:00,3,21,39,8,31,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,21,8,3
+SEED-BA-1755182160,BA,2025-08-14T14:36:00+00:00,2,33,66,26,48,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,33,26,2
+SEED-DAL-1755013320,DAL,2025-08-12T15:42:00+00:00,2,41,62,27,36,0,0,0,0,chart looks bullish AF || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,41,27,2
+SEED-DAL-1754491500,DAL,2025-08-06T14:45:00+00:00,3,55,93,8,30,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,55,8,3
+SEED-UAL-1755094020,UAL,2025-08-13T14:07:00+00:00,2,20,54,19,35,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,20,19,2
+SEED-NVDA-1755024600,NVDA,2025-08-12T18:50:00+00:00,3,58,89,18,33,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks || https://twitter.com/someacct,58,18,3
+SEED-SRFM-1755182820,SRFM,2025-08-14T14:47:00+00:00,2,50,60,19,41,0,0,0,0,is a squeeze coming? vague rumors || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,50,19,2
+SEED-SRFM-1755093060,SRFM,2025-08-13T13:51:00+00:00,2,21,36,27,38,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks,21,27,2
+SEED-UAL-1754584260,UAL,2025-08-07T16:31:00+00:00,3,31,54,19,36,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,31,19,3
+SEED-AMD-1755184860,AMD,2025-08-14T15:21:00+00:00,2,60,99,10,23,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,60,10,2
+SEED-AMD-1754582280,AMD,2025-08-07T15:58:00+00:00,3,45,62,10,29,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,45,10,3
+SEED-CRWD-1754319780,CRWD,2025-08-04T15:03:00+00:00,2,24,54,10,17,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,24,10,2
+SEED-UAL-1754940120,UAL,2025-08-11T19:22:00+00:00,3,42,52,10,22,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,42,10,3
+SEED-BA-1755005700,BA,2025-08-12T13:35:00+00:00,3,45,64,23,43,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,45,23,3
+SEED-NVDA-1755187080,NVDA,2025-08-14T15:58:00+00:00,2,36,67,14,37,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,36,14,2
+SEED-AAL-1755023040,AAL,2025-08-12T18:24:00+00:00,3,27,48,25,41,0,0,0,0,chart looks bullish AF || anyone buying this dip??,https://www.reddit.com/r/stocks,27,25,3
+SEED-UAL-1755185640,UAL,2025-08-14T15:34:00+00:00,3,59,96,26,46,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks || https://twitter.com/someacct,59,26,3
+SEED-AAL-1754920560,AAL,2025-08-11T13:56:00+00:00,3,38,54,23,41,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks,38,23,3
+SEED-BA-1754573760,BA,2025-08-07T13:36:00+00:00,2,53,66,19,32,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks || https://twitter.com/someacct,53,19,2
+SEED-UAL-1754061060,UAL,2025-08-01T15:11:00+00:00,3,35,63,13,37,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks,35,13,3
+SEED-CRWV-1755013380,CRWV,2025-08-12T15:43:00+00:00,3,21,34,11,24,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,21,11,3
+SEED-DAL-1754401320,DAL,2025-08-05T13:42:00+00:00,3,58,83,22,44,0,0,0,0,random DD thread (no links) || anyone buying this dip??,https://www.reddit.com/r/stocks,58,22,3
+SEED-DAL-1754422860,DAL,2025-08-05T19:41:00+00:00,2,28,44,21,44,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,28,21,2
+SEED-CRWV-1754072520,CRWV,2025-08-01T18:22:00+00:00,3,54,91,15,28,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,54,15,3
+SEED-NVDA-1755184260,NVDA,2025-08-14T15:11:00+00:00,3,43,77,11,25,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks,43,11,3
+SEED-SRFM-1755104400,SRFM,2025-08-13T17:00:00+00:00,2,53,67,13,36,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,53,13,2
+SEED-NVDA-1754330700,NVDA,2025-08-04T18:05:00+00:00,2,53,75,26,46,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,53,26,2
+SEED-CRWV-1755184740,CRWV,2025-08-14T15:19:00+00:00,2,35,61,24,46,0,0,0,0,random DD thread (no links) || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,35,24,2
+SEED-UAL-1755005700,UAL,2025-08-12T13:35:00+00:00,2,48,60,26,44,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,48,26,2
+SEED-CRWD-1754319360,CRWD,2025-08-04T14:56:00+00:00,3,27,40,13,36,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,27,13,3
+SEED-SRFM-1755193500,SRFM,2025-08-14T17:45:00+00:00,3,25,44,22,34,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,25,22,3
+SEED-UAL-1755186120,UAL,2025-08-14T15:42:00+00:00,2,45,56,23,39,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,45,23,2
+SEED-CRWV-1754423100,CRWV,2025-08-05T19:45:00+00:00,3,57,92,10,19,0,0,0,0,anyone buying this dip?? || anyone buying this dip??,https://www.reddit.com/r/stocks,57,10,3
+SEED-UAL-1754420160,UAL,2025-08-05T18:56:00+00:00,3,31,60,17,36,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,31,17,3
+SEED-UAL-1754056320,UAL,2025-08-01T13:52:00+00:00,2,54,70,16,28,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,54,16,2
+SEED-BA-1755192780,BA,2025-08-14T17:33:00+00:00,2,33,72,9,22,0,0,0,0,is a squeeze coming? vague rumors || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,33,9,2
+SEED-CRWD-1755007740,CRWD,2025-08-12T14:09:00+00:00,2,26,59,11,33,0,0,0,0,random DD thread (no links) || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,26,11,2
+SEED-AAL-1754065260,AAL,2025-08-01T16:21:00+00:00,3,26,42,8,28,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,26,8,3
+SEED-SRFM-1754580660,SRFM,2025-08-07T15:31:00+00:00,3,55,68,18,31,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,55,18,3
+SEED-AAL-1754073060,AAL,2025-08-01T18:31:00+00:00,2,60,72,11,34,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,60,11,2
+SEED-BA-1754413920,BA,2025-08-05T17:12:00+00:00,3,54,71,10,17,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,54,10,3
+SEED-BA-1754409120,BA,2025-08-05T15:52:00+00:00,2,21,36,10,29,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,21,10,2
+SEED-AAL-1755009120,AAL,2025-08-12T14:32:00+00:00,2,26,57,15,23,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,26,15,2
+SEED-AAL-1755184500,AAL,2025-08-14T15:15:00+00:00,3,52,67,24,45,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,52,24,3
+SEED-CRWD-1754592240,CRWD,2025-08-07T18:44:00+00:00,3,60,92,17,26,0,0,0,0,to the moon!! no source || to the moon!! no source,https://www.reddit.com/r/stocks,60,17,3
+SEED-NVDA-1755192120,NVDA,2025-08-14T17:22:00+00:00,3,27,58,27,35,0,0,0,0,to the moon!! no source || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,27,27,3
+SEED-AAL-1754583420,AAL,2025-08-07T16:17:00+00:00,2,54,86,11,25,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,54,11,2
+SEED-DAL-1754586780,DAL,2025-08-07T17:13:00+00:00,3,48,61,22,28,0,0,0,0,random DD thread (no links) || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,48,22,3
+SEED-AMD-1754509020,AMD,2025-08-06T19:37:00+00:00,2,34,47,14,35,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,34,14,2
+SEED-DAL-1754055300,DAL,2025-08-01T13:35:00+00:00,3,32,65,9,29,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,32,9,3
+SEED-NVDA-1754061600,NVDA,2025-08-01T15:20:00+00:00,2,41,75,14,21,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,41,14,2
+SEED-AAL-1754065380,AAL,2025-08-01T16:23:00+00:00,3,30,40,28,48,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,30,28,3
+SEED-NVDA-1754576280,NVDA,2025-08-07T14:18:00+00:00,2,41,60,16,30,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,41,16,2
+SEED-SRFM-1755100860,SRFM,2025-08-13T16:01:00+00:00,3,38,56,13,23,0,0,0,0,random DD thread (no links) || anyone buying this dip??,https://www.reddit.com/r/stocks,38,13,3
+SEED-UAL-1754589780,UAL,2025-08-07T18:03:00+00:00,3,45,83,8,26,0,0,0,0,is a squeeze coming? vague rumors || anyone buying this dip??,https://www.reddit.com/r/stocks,45,8,3
+SEED-AAL-1755111480,AAL,2025-08-13T18:58:00+00:00,2,31,42,21,45,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,31,21,2
+SEED-BA-1754594340,BA,2025-08-07T19:19:00+00:00,2,46,73,12,20,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,46,12,2
+SEED-BA-1754580540,BA,2025-08-07T15:29:00+00:00,3,24,36,15,21,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,24,15,3
+SEED-AAL-1755101040,AAL,2025-08-13T16:04:00+00:00,2,31,54,11,25,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,31,11,2
+SEED-CRWD-1754675580,CRWD,2025-08-08T17:53:00+00:00,3,40,77,24,40,0,0,0,0,is a squeeze coming? vague rumors || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,40,24,3
+SEED-CRWV-1754493840,CRWV,2025-08-06T15:24:00+00:00,2,21,42,28,47,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,21,28,2
+SEED-DAL-1754679600,DAL,2025-08-08T19:00:00+00:00,3,52,77,25,35,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,52,25,3
+SEED-AMD-1754057520,AMD,2025-08-01T14:12:00+00:00,3,21,49,20,43,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,21,20,3
+SEED-SRFM-1754496780,SRFM,2025-08-06T16:13:00+00:00,3,28,49,20,34,0,0,0,0,to the moon!! no source || to the moon!! no source,https://www.reddit.com/r/stocks,28,20,3
+SEED-CRWV-1754405160,CRWV,2025-08-05T14:46:00+00:00,2,44,73,19,31,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,44,19,2
+SEED-AMD-1754404320,AMD,2025-08-05T14:32:00+00:00,2,47,81,18,42,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,47,18,2
+SEED-SRFM-1754670720,SRFM,2025-08-08T16:32:00+00:00,3,54,77,24,46,0,0,0,0,random DD thread (no links) || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,54,24,3
+SEED-BA-1754416620,BA,2025-08-05T17:57:00+00:00,2,50,73,17,40,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,50,17,2
+SEED-DAL-1754506200,DAL,2025-08-06T18:50:00+00:00,2,51,81,24,44,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,51,24,2
+SEED-BA-1754502060,BA,2025-08-06T17:41:00+00:00,3,36,62,24,42,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,36,24,3
+SEED-NVDA-1754501160,NVDA,2025-08-06T17:26:00+00:00,3,31,52,23,43,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,31,23,3
+SEED-UAL-1754505120,UAL,2025-08-06T18:32:00+00:00,3,50,77,21,38,0,0,0,0,chart looks bullish AF || random DD thread (no links),https://www.reddit.com/r/stocks,50,21,3
+SEED-DAL-1754329680,DAL,2025-08-04T17:48:00+00:00,2,36,73,21,35,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,36,21,2
+SEED-BA-1755200700,BA,2025-08-14T19:45:00+00:00,3,41,56,24,34,0,0,0,0,random DD thread (no links) || anyone buying this dip??,https://www.reddit.com/r/stocks,41,24,3
+SEED-DAL-1755104400,DAL,2025-08-13T17:00:00+00:00,2,33,71,23,35,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,33,23,2
+SEED-UAL-1755092100,UAL,2025-08-13T13:35:00+00:00,2,34,45,14,37,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,34,14,2
+SEED-CRWD-1754487420,CRWD,2025-08-06T13:37:00+00:00,2,36,64,14,26,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,36,14,2
+SEED-NVDA-1754592120,NVDA,2025-08-07T18:42:00+00:00,2,47,87,20,40,0,0,0,0,anyone buying this dip?? || chart looks bullish AF,https://www.reddit.com/r/stocks,47,20,2
+SEED-NVDA-1755179520,NVDA,2025-08-14T13:52:00+00:00,2,41,81,23,36,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,41,23,2
+SEED-UAL-1755027900,UAL,2025-08-12T19:45:00+00:00,2,20,42,17,40,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,20,17,2
+SEED-AAL-1754075520,AAL,2025-08-01T19:12:00+00:00,2,41,68,11,24,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,41,11,2
+SEED-UAL-1755184980,UAL,2025-08-14T15:23:00+00:00,3,34,68,25,42,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,34,25,3
+SEED-AAL-1755092100,AAL,2025-08-13T13:35:00+00:00,3,56,67,24,47,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,56,24,3
+SEED-NVDA-1754314860,NVDA,2025-08-04T13:41:00+00:00,2,49,78,10,21,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,49,10,2
+SEED-AMD-1754665980,AMD,2025-08-08T15:13:00+00:00,2,51,84,21,36,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,51,21,2
+SEED-SRFM-1755094140,SRFM,2025-08-13T14:09:00+00:00,2,42,79,15,24,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,42,15,2
+SEED-NVDA-1754925600,NVDA,2025-08-11T15:20:00+00:00,3,24,46,25,46,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,24,25,3
+SEED-UAL-1755009120,UAL,2025-08-12T14:32:00+00:00,2,38,59,14,29,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks || https://twitter.com/someacct,38,14,2
+SEED-SRFM-1755101280,SRFM,2025-08-13T16:08:00+00:00,3,30,59,20,37,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,30,20,3
+SEED-CRWV-1754503140,CRWV,2025-08-06T17:59:00+00:00,3,35,68,22,39,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks || https://twitter.com/someacct,35,22,3
+SEED-BA-1755197460,BA,2025-08-14T18:51:00+00:00,2,55,70,23,30,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,55,23,2
+SEED-DAL-1755195960,DAL,2025-08-14T18:26:00+00:00,2,21,40,25,38,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,21,25,2
+SEED-SRFM-1754941500,SRFM,2025-08-11T19:45:00+00:00,2,28,55,22,37,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,28,22,2
+SEED-AAL-1755025260,AAL,2025-08-12T19:01:00+00:00,2,58,70,23,45,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,58,23,2
+SEED-AAL-1754680440,AAL,2025-08-08T19:14:00+00:00,3,54,72,25,34,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks,54,25,3
+SEED-NVDA-1754925540,NVDA,2025-08-11T15:19:00+00:00,2,52,78,12,20,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,52,12,2
+SEED-NVDA-1754330160,NVDA,2025-08-04T17:56:00+00:00,2,28,68,25,37,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,28,25,2
+SEED-AMD-1754923800,AMD,2025-08-11T14:50:00+00:00,2,39,73,16,32,0,0,0,0,anyone buying this dip?? || chart looks bullish AF,https://www.reddit.com/r/stocks,39,16,2
+SEED-AMD-1754573700,AMD,2025-08-07T13:35:00+00:00,3,34,69,16,26,0,0,0,0,is a squeeze coming? vague rumors || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,34,16,3
+SEED-SRFM-1755109080,SRFM,2025-08-13T18:18:00+00:00,3,31,69,21,29,0,0,0,0,chart looks bullish AF || chart looks bullish AF,https://www.reddit.com/r/stocks,31,21,3
+SEED-SRFM-1754577660,SRFM,2025-08-07T14:41:00+00:00,3,31,57,22,40,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,31,22,3
+SEED-AAL-1754931960,AAL,2025-08-11T17:06:00+00:00,2,20,52,10,17,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,20,10,2
+SEED-BA-1754491680,BA,2025-08-06T14:48:00+00:00,2,44,60,21,39,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,44,21,2
+SEED-SRFM-1754924580,SRFM,2025-08-11T15:03:00+00:00,2,25,56,27,33,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,25,27,2
+SEED-DAL-1755095460,DAL,2025-08-13T14:31:00+00:00,3,48,61,13,37,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,48,13,3
+SEED-DAL-1755191100,DAL,2025-08-14T17:05:00+00:00,3,57,94,20,43,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,57,20,3
+SEED-DAL-1755092880,DAL,2025-08-13T13:48:00+00:00,3,21,32,10,16,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,21,10,3
+SEED-CRWD-1755179220,CRWD,2025-08-14T13:47:00+00:00,3,52,76,9,17,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,52,9,3
+SEED-UAL-1754336520,UAL,2025-08-04T19:42:00+00:00,3,56,72,15,31,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,56,15,3
+SEED-BA-1754063220,BA,2025-08-01T15:47:00+00:00,2,51,77,8,14,0,0,0,0,anyone buying this dip?? || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,51,8,2
+SEED-CRWV-1755100620,CRWV,2025-08-13T15:57:00+00:00,2,49,61,21,42,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,49,21,2
+SEED-NVDA-1754919660,NVDA,2025-08-11T13:41:00+00:00,3,41,80,10,17,0,0,0,0,is a squeeze coming? vague rumors || chart looks bullish AF,https://www.reddit.com/r/stocks,41,10,3
+SEED-DAL-1755190740,DAL,2025-08-14T16:59:00+00:00,3,58,79,28,44,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks,58,28,3
+SEED-CRWV-1754336700,CRWV,2025-08-04T19:45:00+00:00,3,52,89,20,28,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks || https://twitter.com/someacct,52,20,3
+SEED-NVDA-1755184440,NVDA,2025-08-14T15:14:00+00:00,3,25,48,18,35,0,0,0,0,chart looks bullish AF || anyone buying this dip??,https://www.reddit.com/r/stocks,25,18,3
+SEED-BA-1754929320,BA,2025-08-11T16:22:00+00:00,3,25,35,20,30,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,25,20,3
+SEED-CRWV-1755184560,CRWV,2025-08-14T15:16:00+00:00,3,25,41,20,43,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks || https://twitter.com/someacct,25,20,3
+SEED-AMD-1754502720,AMD,2025-08-06T17:52:00+00:00,2,32,68,28,35,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,32,28,2
+SEED-NVDA-1755097200,NVDA,2025-08-13T15:00:00+00:00,2,30,70,23,29,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,30,23,2
+SEED-BA-1754579940,BA,2025-08-07T15:19:00+00:00,3,40,65,10,30,0,0,0,0,anyone buying this dip?? || to the moon!! no source,https://www.reddit.com/r/stocks,40,10,3
+SEED-AAL-1755092160,AAL,2025-08-13T13:36:00+00:00,2,37,75,25,32,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,37,25,2
+SEED-UAL-1754676780,UAL,2025-08-08T18:13:00+00:00,3,57,75,18,31,0,0,0,0,is a squeeze coming? vague rumors || anyone buying this dip??,https://www.reddit.com/r/stocks || https://twitter.com/someacct,57,18,3
+SEED-AMD-1754325120,AMD,2025-08-04T16:32:00+00:00,3,27,47,17,41,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,27,17,3
+SEED-AMD-1755190380,AMD,2025-08-14T16:53:00+00:00,3,39,59,14,29,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,39,14,3
+SEED-UAL-1755198300,UAL,2025-08-14T19:05:00+00:00,2,47,83,15,23,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks || https://twitter.com/someacct,47,15,2
+SEED-DAL-1754575500,DAL,2025-08-07T14:05:00+00:00,2,32,61,11,20,0,0,0,0,anyone buying this dip?? || anyone buying this dip??,https://www.reddit.com/r/stocks,32,11,2
+SEED-SRFM-1755012960,SRFM,2025-08-12T15:36:00+00:00,2,52,75,17,37,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,52,17,2
+SEED-BA-1755011220,BA,2025-08-12T15:07:00+00:00,2,56,84,23,43,0,0,0,0,to the moon!! no source || to the moon!! no source,https://www.reddit.com/r/stocks,56,23,2
+SEED-CRWD-1754588700,CRWD,2025-08-07T17:45:00+00:00,2,28,39,12,24,0,0,0,0,is a squeeze coming? vague rumors || anyone buying this dip??,https://www.reddit.com/r/stocks,28,12,2
+SEED-SRFM-1754670360,SRFM,2025-08-08T16:26:00+00:00,3,47,72,13,36,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks,47,13,3
+SEED-NVDA-1754935860,NVDA,2025-08-11T18:11:00+00:00,2,37,76,21,27,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,37,21,2
+SEED-AAL-1754920440,AAL,2025-08-11T13:54:00+00:00,2,27,52,10,18,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,27,10,2
+SEED-CRWV-1754418300,CRWV,2025-08-05T18:25:00+00:00,3,29,63,11,18,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,29,11,3
+SEED-CRWD-1754421000,CRWD,2025-08-05T19:10:00+00:00,3,42,60,10,33,0,0,0,0,chart looks bullish AF || anyone buying this dip??,https://www.reddit.com/r/stocks,42,10,3
+SEED-BA-1754669820,BA,2025-08-08T16:17:00+00:00,2,46,83,25,38,0,0,0,0,chart looks bullish AF || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,46,25,2
+SEED-UAL-1754681160,UAL,2025-08-08T19:26:00+00:00,3,43,67,18,36,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,43,18,3
+SEED-CRWD-1754077320,CRWD,2025-08-01T19:42:00+00:00,3,35,69,21,36,0,0,0,0,chart looks bullish AF || random DD thread (no links),https://www.reddit.com/r/stocks,35,21,3
+SEED-CRWD-1754419560,CRWD,2025-08-05T18:46:00+00:00,2,56,90,11,19,0,0,0,0,chart looks bullish AF || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,56,11,2
+SEED-AMD-1754502780,AMD,2025-08-06T17:53:00+00:00,2,28,48,24,37,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,28,24,2
+SEED-AAL-1754573700,AAL,2025-08-07T13:35:00+00:00,3,49,64,27,38,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,49,27,3
+SEED-CRWD-1754400900,CRWD,2025-08-05T13:35:00+00:00,3,41,52,27,34,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,41,27,3
+SEED-NVDA-1755099600,NVDA,2025-08-13T15:40:00+00:00,3,54,82,16,32,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,54,16,3
+SEED-SRFM-1754319060,SRFM,2025-08-04T14:51:00+00:00,2,44,65,23,36,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,44,23,2
+SEED-NVDA-1754594220,NVDA,2025-08-07T19:17:00+00:00,3,34,63,22,29,0,0,0,0,to the moon!! no source || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,34,22,3
+SEED-UAL-1754074680,UAL,2025-08-01T18:58:00+00:00,3,56,83,8,27,0,0,0,0,anyone buying this dip?? || anyone buying this dip??,https://www.reddit.com/r/stocks || https://twitter.com/someacct,56,8,3
+SEED-AMD-1754422680,AMD,2025-08-05T19:38:00+00:00,2,49,76,17,28,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks || https://twitter.com/someacct,49,17,2
+SEED-NVDA-1755096720,NVDA,2025-08-13T14:52:00+00:00,2,53,72,9,21,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks || https://twitter.com/someacct,53,9,2
+SEED-BA-1755104700,BA,2025-08-13T17:05:00+00:00,2,51,62,12,19,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,51,12,2
+SEED-DAL-1754414700,DAL,2025-08-05T17:25:00+00:00,2,34,50,20,38,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,34,20,2
+SEED-BA-1754491500,BA,2025-08-06T14:45:00+00:00,2,31,49,28,39,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,31,28,2
+SEED-CRWD-1755111060,CRWD,2025-08-13T18:51:00+00:00,2,34,63,12,26,0,0,0,0,anyone buying this dip?? || anyone buying this dip??,https://www.reddit.com/r/stocks,34,12,2
+SEED-CRWV-1755005700,CRWV,2025-08-12T13:35:00+00:00,3,53,82,26,35,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,53,26,3
+SEED-UAL-1754496540,UAL,2025-08-06T16:09:00+00:00,2,30,63,9,21,0,0,0,0,to the moon!! no source || chart looks bullish AF,https://www.reddit.com/r/stocks,30,9,2
+SEED-CRWV-1755006840,CRWV,2025-08-12T13:54:00+00:00,2,27,59,16,27,0,0,0,0,is a squeeze coming? vague rumors || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks || https://twitter.com/someacct,27,16,2
+SEED-AMD-1754929980,AMD,2025-08-11T16:33:00+00:00,2,25,62,22,28,0,0,0,0,to the moon!! no source || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,25,22,2
+SEED-CRWV-1754933280,CRWV,2025-08-11T17:28:00+00:00,3,44,81,27,48,0,0,0,0,random DD thread (no links) || chart looks bullish AF,https://www.reddit.com/r/stocks || https://twitter.com/someacct,44,27,3
+SEED-NVDA-1754057640,NVDA,2025-08-01T14:14:00+00:00,3,35,52,16,31,0,0,0,0,random DD thread (no links) || anyone buying this dip??,https://www.reddit.com/r/stocks,35,16,3
+SEED-BA-1754069340,BA,2025-08-01T17:29:00+00:00,2,53,82,22,35,0,0,0,0,anyone buying this dip?? || random DD thread (no links),https://www.reddit.com/r/stocks,53,22,2
+SEED-AAL-1755198420,AAL,2025-08-14T19:07:00+00:00,2,53,77,28,43,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks || https://twitter.com/someacct,53,28,2
+SEED-CRWV-1754070420,CRWV,2025-08-01T17:47:00+00:00,3,30,56,17,25,0,0,0,0,chart looks bullish AF || anyone buying this dip??,https://www.reddit.com/r/stocks,30,17,3
+SEED-AMD-1754421900,AMD,2025-08-05T19:25:00+00:00,3,45,73,26,34,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,45,26,3
+SEED-CRWD-1754930940,CRWD,2025-08-11T16:49:00+00:00,3,40,78,19,26,0,0,0,0,anyone buying this dip?? || is a squeeze coming? vague rumors,https://www.reddit.com/r/stocks,40,19,3
+SEED-AMD-1755010380,AMD,2025-08-12T14:53:00+00:00,2,24,35,13,37,0,0,0,0,to the moon!! no source || anyone buying this dip??,https://www.reddit.com/r/stocks,24,13,2
+SEED-AMD-1755191640,AMD,2025-08-14T17:14:00+00:00,3,29,59,13,25,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,29,13,3
+SEED-NVDA-1754055300,NVDA,2025-08-01T13:35:00+00:00,2,60,82,17,34,0,0,0,0,chart looks bullish AF || to the moon!! no source,https://www.reddit.com/r/stocks,60,17,2
+SEED-CRWD-1754499240,CRWD,2025-08-06T16:54:00+00:00,3,27,66,15,32,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,27,15,3
+SEED-DAL-1754320980,DAL,2025-08-04T15:23:00+00:00,3,24,38,26,37,0,0,0,0,to the moon!! no source || random DD thread (no links),https://www.reddit.com/r/stocks,24,26,3
+SEED-CRWV-1754400900,CRWV,2025-08-05T13:35:00+00:00,3,44,60,24,45,0,0,0,0,random DD thread (no links) || random DD thread (no links),https://www.reddit.com/r/stocks,44,24,3
+SEED-AMD-1754666400,AMD,2025-08-08T15:20:00+00:00,2,52,66,9,24,0,0,0,0,is a squeeze coming? vague rumors || random DD thread (no links),https://www.reddit.com/r/stocks,52,9,2
+SEED-CRWV-1754407500,CRWV,2025-08-05T15:25:00+00:00,2,36,65,21,38,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks,36,21,2
+SEED-DAL-1754415780,DAL,2025-08-05T17:43:00+00:00,3,20,38,28,50,0,0,0,0,random DD thread (no links) || to the moon!! no source,https://www.reddit.com/r/stocks || https://twitter.com/someacct,20,28,3
+SEED-BA-1755107340,BA,2025-08-13T17:49:00+00:00,2,45,79,28,39,0,0,0,0,is a squeeze coming? vague rumors || to the moon!! no source,https://www.reddit.com/r/stocks,45,28,2
