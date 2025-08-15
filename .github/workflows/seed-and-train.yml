@@ -8,6 +8,7 @@ on:
       tickers:{ description: "Tickers CSV", default: "AMD,NVDA,BA,CRWD,CRWV,SRFM,UAL,DAL,AAL", required: true, type: string }
       seed:  { description: "Random seed", default: "42", required: true, type: string }
 
+
 jobs:
   go:
     runs-on: ubuntu-latest
