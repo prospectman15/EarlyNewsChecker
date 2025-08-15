@@ -240,6 +240,14 @@ jobs:
             --single_post_min_comments 40 \
             --min_abs_ret_pct "${{ inputs.min_abs_ret_pct }}"
 
+      - name: Inspect dataset counts
+        run: |
+          echo "signals rows: $(wc -l < dataset/signals.csv 2>/dev/null || echo 0)"
+          echo "labels rows:  $(wc -l < dataset/labels.csv 2>/dev/null || echo 0)"
+          echo "outcomes rows:$(wc -l < outcomes.csv 2>/dev/null || echo 0)"
+          echo "--- last 5 signals ---"; tail -n 5 dataset/signals.csv || true
+          echo "--- last 5 outcomes ---"; tail -n 5 outcomes.csv || true
+
       # ---------- Mix outcomes.csv -> labels (optional) + minimal-signal backfill ----------
       - name: Outcomes → Labels (inline)
         if: ${{ inputs.outcomes_to_labels == 'yes' }}
