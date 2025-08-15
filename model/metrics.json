@@ -1,12 +1,12 @@
 {
   "mode": "logreg",
-  "auc": 0.8724662162162162,
+  "auc": 0.850097950572634,
   "best_threshold": 0.55,
-  "precision_at_best": 0.4444444444444444,
-  "recall_at_best": 1.0,
-  "f1_at_best": 0.6153846153846154,
-  "n_rows": 360,
-  "pos_rate": 0.18333333333333332,
+  "precision_at_best": 0.47435897435897434,
+  "recall_at_best": 0.9367088607594937,
+  "f1_at_best": 0.6297872340425532,
+  "n_rows": 1660,
+  "pos_rate": 0.19036144578313252,
   "features": [
     "hits_in_window",
     "score_max",
