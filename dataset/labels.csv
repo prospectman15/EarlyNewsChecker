@@ -1669,3 +1669,5 @@ PLTR,2025-08-01T14:18:00+00:00,90,0,noise/hype; no follow-through
 COIN,2025-07-25T19:45:00+00:00,90,0,noise/hype; no follow-through
 CRWV,2025-08-14T18:51:49.333021+00:00,60,1,auto from t+60m |Δ|=4.07% (id=PRC-CRWV-1755197509)
 SRFM,2025-08-14T18:51:49.333021+00:00,60,0,auto from t+60m |Δ|=1.89% (id=PRC-SRFM-1755197509)
+CRWV,2025-08-15T19:54:06.734364+00:00,90,1,auto_spike: UP |Δopen=+5.02% | last10m=+0.71% | vol≈1.7×
+SRFM,2025-08-15T19:54:06.734364+00:00,90,1,auto_spike: DOWN |Δopen=-6.46% | last10m=-2.07% | vol≈1.9×
