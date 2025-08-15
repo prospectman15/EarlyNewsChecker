@@ -12,17 +12,17 @@ on:
       tickers:
         description: "Tickers CSV (used by backfill & seeding)"
         required: true
-        default: "AMD,NVDA,BA,CRWD,CRWV,SRFM,TSLA,PLTR,SMCI,COIN,AAPL,MSFT,META,TSM"
+        default: "TSLA,AMD,PLTR,SMCI,COIN,BA,CRWD,AAPL,MSFT"
         type: string
       backfill_days:
-        description: "Reddit backfill trailing days (<=30)"
+        description: "Reddit backfill trailing days (<=7 recommended)"
         required: true
-        default: "30"
+        default: "7"
         type: string
       subs:
         description: "Subreddits CSV"
         required: true
-        default: "stocks,StockMarket,wallstreetbets,investing,options,swingtrading"
+        default: "wallstreetbets,stocks,StockMarket"
         type: string
       window:
         description: "Cluster window (minutes)"
@@ -34,17 +34,12 @@ on:
         required: true
         default: "3"
         type: string
-      since:
-        description: "Backfill only alerts after this UTC ISO (optional)"
-        required: false
-        default: ""
-        type: string
-      outcomes_to_labels:
-        description: "Also convert outcomes.csv -> labels? (yes/no)"
+      gates:
+        description: "Backfill gates"
         required: true
-        default: "yes"
+        default: "loose"
         type: choice
-        options: ["yes","no"]
+        options: ["loose","normal","strict"]
       seed_params:
         description: "Seeding params CSV: pos=0,neg=0,days=30,seed=73"
         required: true
@@ -59,22 +54,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        with: { fetch-depth: 0 }
 
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+        with: { python-version: "3.11" }
 
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt || true
+          # Ensure these are present even if not in requirements.txt
+          pip install requests yfinance pandas numpy scikit-learn --upgrade
 
-      # ---------- Parse seeding params into env (POS/NEG/DAYS/SEED) ----------
+      # Parse seeding params into env (POS/NEG/SDAYS/SSEED)
       - name: Parse seed_params
         id: parse
-        shell: bash
         env:
           SEED_PARAMS: ${{ inputs.seed_params }}
         run: |
@@ -82,151 +76,277 @@ jobs:
           import os
           s = os.getenv("SEED_PARAMS","")
           d = dict(p.strip().split("=",1) for p in s.split(",") if "=" in p)
-          def val(k, default):
-            return d.get(k, default)
+          def val(k, default): return d.get(k, default)
           print("POS="+val("pos","0"))
           print("NEG="+val("neg","0"))
           print("SDAYS="+val("days","30"))
           print("SSEED="+val("seed","73"))
           PY
-          cat parsed.env
           cat parsed.env >> $GITHUB_ENV
 
-      # ---------- Write the Reddit backfill helper (so no extra files needed) ----------
+      # Map 'gates' input to numeric thresholds
+      - name: Compute backfill gate vars
+        id: gates
+        run: |
+          set -e
+          GATES="${{ inputs.gates }}"
+          if [ "$GATES" = "strict" ]; then
+            echo "REQ_MATCHES=2"     >> $GITHUB_ENV
+            echo "MIN_SCORE=120"     >> $GITHUB_ENV
+            echo "MIN_COMMENTS=80"   >> $GITHUB_ENV
+          elif [ "$GATES" = "normal" ]; then
+            echo "REQ_MATCHES=2"     >> $GITHUB_ENV
+            echo "MIN_SCORE=80"      >> $GITHUB_ENV
+            echo "MIN_COMMENTS=40"   >> $GITHUB_ENV
+          else
+            echo "REQ_MATCHES=1"     >> $GITHUB_ENV
+            echo "MIN_SCORE=0"       >> $GITHUB_ENV
+            echo "MIN_COMMENTS=0"    >> $GITHUB_ENV
+          fi
+
+      # Write a robust Reddit backfill helper (no extra files in repo)
       - name: Write tools/backfill_reddit.py
         if: ${{ inputs.run_mode == 'real_only' || inputs.run_mode == 'both' }}
         run: |
           mkdir -p tools
           cat > tools/backfill_reddit.py << 'PY'
           #!/usr/bin/env python3
-          import os, csv, time, argparse, re
+          import os, csv, re, time, argparse
           from datetime import datetime, timedelta, timezone
           from urllib.parse import urlparse
           import requests, yfinance as yf
-          DATASET_DIR="dataset"; SIGNALS=DATASET_DIR+"/signals.csv"; LABELS=DATASET_DIR+"/labels.csv"; OUTCOMES="outcomes.csv"
-          CLUSTER_WINDOW_MIN=60; REQUIRED_MATCHES=2; SINGLE_POST_MIN_SCORE=80; SINGLE_POST_MIN_COMMENTS=40; MIN_ABS_RET_PCT=3.0; LABEL_WINDOW_MIN=90
-          MEDIA_BLACKLIST={"bloomberg.com","reuters.com","wsj.com","nytimes.com","cnn.com","cnbc.com","apnews.com","foxnews.com","marketwatch.com","seekingalpha.com","financialtimes.com","ft.com","benzinga.com","yahoo.com","forbes.com","theguardian.com","investing.com","washingtonpost.com","usatoday.com","nbcnews.com","abcnews.go.com","bbc.com","barrons.com","coindesk.com","cointelegraph.com"}
+
+          DATASET_DIR="dataset"
+          SIGNALS=f"{DATASET_DIR}/signals.csv"
+          LABELS=f"{DATASET_DIR}/labels.csv"
+          OUTCOMES="outcomes.csv"
+          DEBUG_COUNTS=f"{DATASET_DIR}/backfill_debug_counts.csv"
+
+          CLUSTER_WINDOW_MIN=60
+          REQUIRED_MATCHES=1
+          SINGLE_POST_MIN_SCORE=0
+          SINGLE_POST_MIN_COMMENTS=0
+          MIN_ABS_RET_PCT=3.0
+          LABEL_WINDOW_MIN=90
           MEDIA_ALLOW={"sec.gov","businesswire.com","prnewswire.com"}
-          CRISIS=["crash","emergency landing","grounded","evacuate","explosion","fire","smoke","engine failure","faa","ntsb","probe","recall","lawsuit","hack","breach","ransomware","outage","strike","walkout","ceo resign"]
-          POS=["upgrade","raises guidance","raise price target","price target","initiated coverage","beats","beat estimates","contract win","buyback","approval","fda"]
-          EARN=[r"\bearnings\b", r"\beps\b","results","miss","beat","guide","guidance","revenue","margin","outlook","forecast","loss","profit"]
-          def hdrs():
-            os.makedirs(DATASET_DIR, exist_ok=True)
-            if not os.path.exists(SIGNALS):
-              csv.writer(open(SIGNALS,"w",newline="",encoding="utf-8")).writerow(["id","ticker","signal_iso","hits_in_window","score_max","score_sum","comments_max","comments_sum","has_positive","has_crisis","has_earnings","has_primary_source_link","titles_concat","links_concat","score_max","comments_max","hits"])
-            if not os.path.exists(LABELS):
-              csv.writer(open(LABELS,"w",newline="",encoding="utf-8")).writerow(["ticker","iso_time","window_min","y","notes"])
-            if not os.path.exists(OUTCOMES):
-              csv.writer(open(OUTCOMES,"w",newline="",encoding="utf-8")).writerow(["id","ticker","label","due_iso","alert_price","cur_price","ret_pct"])
-          def ok_url(u):
-            try: host=urlparse(u or "").netloc.lower()
-            except: return True
-            if not host: return True
-            if host in MEDIA_ALLOW or any(host.endswith("."+d) for d in MEDIA_ALLOW): return True
-            if host in MEDIA_BLACKLIST or any(host.endswith("."+d) for d in MEDIA_BLACKLIST): return False
-            if host.startswith("investor.") or host.startswith("ir."): return True
-            return True
-          def any_in(s, arr): t=(s or "").lower(); return any(x in t for x in arr)
-          def any_rx(s, rx): t=(s or "").lower(); return any(re.search(p,t) for p in rx)
+
+          POS = ["upgrade","raises guidance","raise price target","price target","initiated coverage",
+                 "beats","beat estimates","contract win","buyback","approval","fda","pt raise"]
+          CRISIS = ["crash","emergency landing","grounded","evacuate","explosion","fire","smoke",
+                    "engine failure","faa","ntsb","probe","recall","lawsuit","hack","breach","ransomware",
+                    "outage","strike","walkout","ceo resign","halts"]
+          EARN = [r"\bearnings\b", r"\beps\b","results","miss","beat","guide","guidance","revenue",
+                  "margin","outlook","forecast","loss","profit"]
+
+          def ensure_headers():
+              os.makedirs(DATASET_DIR, exist_ok=True)
+              if not os.path.exists(SIGNALS):
+                  csv.writer(open(SIGNALS,"w",newline="",encoding="utf-8")).writerow([
+                      "id","ticker","signal_iso",
+                      "hits_in_window","score_max","score_sum","comments_max","comments_sum",
+                      "has_positive","has_crisis","has_earnings","has_primary_source_link",
+                      "titles_concat","links_concat",
+                      "score_max","comments_max","hits"
+                  ])
+              if not os.path.exists(LABELS):
+                  csv.writer(open(LABELS,"w",newline="",encoding="utf-8")).writerow(
+                      ["ticker","iso_time","window_min","y","notes"])
+              if not os.path.exists(OUTCOMES):
+                  csv.writer(open(OUTCOMES,"w",newline="",encoding="utf-8")).writerow(
+                      ["id","ticker","label","due_iso","alert_price","cur_price","ret_pct"])
+              if not os.path.exists(DEBUG_COUNTS):
+                  csv.writer(open(DEBUG_COUNTS,"w",newline="",encoding="utf-8")).writerow(
+                      ["day","subreddit","ticker","posts_fetched","posts_kept","clusters_emitted"])
+
+          def px_at(tkr, t_utc):
+              # 1m bars available ~7 days back
+              try:
+                  df=yf.download(tickers=tkr, period="7d", interval="1m", progress=False, threads=False)
+                  if df is None or df.empty: return None
+                  idx=df.index.tz_convert(None) if getattr(df.index,"tz",None) else df.index
+                  df=df.copy(); df.index=idx
+                  tgt=t_utc.replace(second=0,microsecond=0).replace(tzinfo=None)
+                  sub=df.loc[:tgt].tail(1)
+                  return None if sub.empty else float(sub["Close"].iloc[-1])
+              except: return None
+
           def rth_align(tu):
-            et=tu.astimezone(); 
-            if et.weekday()>=5:
-              days=7-et.weekday(); et=(et+timedelta(days=days)).replace(hour=9,minute=30,second=0,microsecond=0); 
+              et = tu.astimezone()
+              if et.weekday()>=5:
+                  days=7-et.weekday()
+                  et=(et+timedelta(days=days)).replace(hour=9,minute=30,second=0,microsecond=0)
+                  return et.astimezone(timezone.utc)
+              o=et.replace(hour=9,minute=30,second=0,microsecond=0)
+              c=et.replace(hour=16,minute=0,second=0,microsecond=0)
+              if et<o: return o.astimezone(timezone.utc)
+              if et>c:
+                  nx=et+timedelta(days=1)
+                  while nx.weekday()>=5: nx+=timedelta(days=1)
+                  nx=nx.replace(hour=9,minute=30,second=0,microsecond=0)
+                  return nx.astimezone(timezone.utc)
               return et.astimezone(timezone.utc)
-            o=et.replace(hour=9,minute=30,second=0,microsecond=0); c=et.replace(hour=16,minute=0,second=0,microsecond=0)
-            if et<o: return o.astimezone(timezone.utc)
-            if et>c:
-              nx=et+timedelta(days=1)
-              while nx.weekday()>=5: nx+=timedelta(days=1)
-              nx=nx.replace(hour=9,minute=30,second=0,microsecond=0); return nx.astimezone(timezone.utc)
-            return et.astimezone(timezone.utc)
-          def px_at(tkr,tu):
-            try:
-              df=yf.download(tickers=tkr, period="5d", interval="1m", progress=False, threads=False)
-              if df is None or df.empty: return None
-              idx=df.index.tz_convert(None) if getattr(df.index,"tz",None) else df.index
-              df=df.copy(); df.index=idx; tgt=tu.replace(second=0,microsecond=0).replace(tzinfo=None)
-              sub=df.loc[:tgt].tail(1); 
-              if sub.empty: return None
-              return float(sub["Close"].iloc[-1])
-            except: return None
-          def t60(tkr,ats):
-            p0=px_at(tkr,ats); 
-            if not p0: return None,None,None
-            due=rth_align(ats+timedelta(minutes=60)); p1=px_at(tkr,due)
-            if not p1: return p0,None,None
-            return p0,p1,(p1/p0-1.0)*100.0
-          def pushshift(sub,q,a,b,sz=250):
-            url=("https://api.pullpush.io/reddit/search/submission/?subreddit={}&q={}&after={}&before={}&size={}&sort=asc").format(sub,requests.utils.quote(q),a,b,sz)
-            try:
-              r=requests.get(url,timeout=20,headers={"User-Agent":"early-news-backfill/1.0"})
-              if r.status_code!=200: return []
-              data=r.json().get("data",[])
-              return [{"title":d.get("title",""),"url":d.get("url") or "","created_utc":int(d.get("created_utc",0) or 0),"num_comments":int(d.get("num_comments",0) or 0),"score":int(d.get("score",0) or 0),"source":"r/"+sub} for d in data]
-            except: return []
+
+          def t60_return(tkr, ats):
+              p0=px_at(tkr, ats)
+              if not p0: return None,None,None
+              due=rth_align(ats + timedelta(minutes=60))
+              p1=px_at(tkr, due)
+              if not p1: return p0,None,None
+              return p0,p1,(p1/p0 - 1.0)*100.0
+
+          def pushshift_fetch(sub, q, after_ts, before_ts, size=250):
+              url=( "https://api.pullpush.io/reddit/search/submission/"
+                    f"?subreddit={sub}&q={requests.utils.quote(q)}&after={after_ts}&before={before_ts}"
+                    f"&size={size}&sort=asc" )
+              try:
+                  r=requests.get(url,timeout=20,headers={"User-Agent":"early-news-backfill/1.0"})
+                  if r.status_code!=200: return []
+                  data=r.json().get("data",[])
+                  out=[]
+                  for d in data:
+                      out.append({
+                          "title": d.get("title","") or "",
+                          "selftext": d.get("selftext","") or "",
+                          "url": d.get("url") or "",
+                          "created_utc": int(d.get("created_utc",0) or 0),
+                          "num_comments": int(d.get("num_comments",0) or 0),
+                          "score": int(d.get("score",0) or 0),
+                          "subreddit": sub
+                      })
+                  return out
+              except:
+                  return []
+
+          def compile_patterns(tkr):
+              return [
+                  re.compile(rf"\${re.escape(tkr)}\b", re.I),      # $TSLA
+                  re.compile(rf"\b{re.escape(tkr)}\b", re.I),      # TSLA
+              ]
+
+          def post_mentions(post, pats):
+              text = f"{post.get('title','')} {post.get('selftext','')}"
+              return any(p.search(text) for p in pats)
+
+          def has_primary(links):
+              return any(any(dom in (l or "") for dom in MEDIA_ALLOW) for l in links)
+
+          def contains_any(s, arr):
+              t=(s or "").lower(); return any(x in t for x in arr)
+
+          def contains_rx(s, rx):
+              t=(s or "").lower()
+              return any(re.search(p, t) for p in rx)
+
           def main():
-            ap=argparse.ArgumentParser(); 
-            ap.add_argument("--tickers",required=True); ap.add_argument("--days",type=int,default=30)
-            ap.add_argument("--subs",default="stocks,StockMarket,wallstreetbets,investing,options,swingtrading")
-            ap.add_argument("--cluster_window",type=int,default=60); ap.add_argument("--required_matches",type=int,default=2)
-            ap.add_argument("--single_post_min_score",type=int,default=80); ap.add_argument("--single_post_min_comments",type=int,default=40)
-            ap.add_argument("--min_abs_ret_pct",type=float,default=3.0)
-            a=ap.parse_args()
-            global CLUSTER_WINDOW_MIN,REQUIRED_MATCHES,SINGLE_POST_MIN_SCORE,SINGLE_POST_MIN_COMMENTS,MIN_ABS_RET_PCT
-            CLUSTER_WINDOW_MIN=a.cluster_window; REQUIRED_MATCHES=a.required_matches
-            SINGLE_POST_MIN_SCORE=a.single_post_min_score; SINGLE_POST_MIN_COMMENTS=a.single_post_min_comments
-            MIN_ABS_RET_PCT=a.min_abs_ret_pct
-            tks=[t.strip().upper() for t in a.tickers.split(",") if t.strip()]
-            subs=[s.strip() for s in a.subs.split(",") if s.strip()]
-            hdrs(); end=datetime.now(timezone.utc); start=end-timedelta(days=a.days)
-            with open(SIGNALS,"a",newline="",encoding="utf-8") as fs, open(LABELS,"a",newline="",encoding="utf-8") as fl, open(OUTCOMES,"a",newline="",encoding="utf-8") as fo:
-              ws=csv.writer(fs); wl=csv.writer(fl); wo=csv.writer(fo)
-              for d in range(a.days,0,-1):
-                d_end=end-timedelta(days=d-1); d_start=end-timedelta(days=d)
-                after=int(d_start.timestamp()); before=int(d_end.timestamp())
-                by={}
-                for sub in subs:
-                  for t in tks:
-                    q=f'"{t}" OR {t}'
-                    rows=pushshift(sub,q,after,before)
-                    by.setdefault(t,[]).extend([p for p in rows if (t.lower() in (p["title"] or "").lower()) and (not p.get("url") or ok_url(p["url"]))])
-                  time.sleep(0.3)
-                for t,lst in by.items():
-                  lst.sort(key=lambda x:x["created_utc"])
-                  i=0; W=CLUSTER_WINDOW_MIN*60; seen=set()
-                  while i<len(lst):
-                    anchor=lst[i]["created_utc"]; j=i; cl=[]
-                    while j<len(lst) and lst[j]["created_utc"]<=anchor+W: cl.append(lst[j]); j+=1
-                    i+=1
-                    hits=len(cl); smax=max([p.get("score",0) for p in cl]) if cl else 0; cmax=max([p.get("num_comments",0) for p in cl]) if cl else 0
-                    ssum=sum([p.get("score",0) for p in cl]); csum=sum([p.get("num_comments",0) for p in cl])
-                    titles=[p["title"] for p in cl[:4]]; links=[p.get("url","") for p in cl[:4]]
-                    has_pos=1 if any(any_in(" "+p["title"]+" ",POS) for p in cl) else 0
-                    has_cri=1 if any(any_in(" "+p["title"]+" ",CRISIS) for p in cl) else 0
-                    has_earn=1 if any(any_rx(p["title"],EARN) for p in cl) else 0
-                    has_primary=1 if any((u and any(dom in u for dom in MEDIA_ALLOW)) for u in links) else 0
-                    cluster_ok=hits>=REQUIRED_MATCHES; consensus_ok=(smax>=SINGLE_POST_MIN_SCORE and cmax>=SINGLE_POST_MIN_COMMENTS)
-                    if not (cluster_ok or consensus_ok): continue
-                    bucket=anchor//1800; key=(t,bucket)
-                    if key in seen: continue
-                    seen.add(key)
-                    ts=datetime.fromtimestamp(anchor,tz=timezone.utc).isoformat()
-                    sid=f"BF-{t}-{anchor}"
-                    ws.writerow([sid,t,ts,hits,smax,ssum,cmax,csum,has_pos,has_cri,has_earn,has_primary," || ".join(titles)," || ".join(links),smax,cmax,hits])
-                    ats=datetime.fromtimestamp(anchor,tz=timezone.utc); p0,p1,ret=t60(t,ats)
-                    if p0 is not None and p1 is not None and ret is not None:
-                      wo.writerow([sid,t,"t+60m",(ats+timedelta(minutes=60)).isoformat(),f"{p0:.4f}",f"{p1:.4f}",f"{ret:.3f}"])
-                      wl.writerow([t,ts,str(LABEL_WINDOW_MIN), "1" if abs(ret)>=MIN_ABS_RET_PCT else "0", f"backfill t+60m |Δ|={ret:.2f}%"])
-                    else:
-                      wl.writerow([t,ts,str(LABEL_WINDOW_MIN),"0","backfill: price missing"])
-                time.sleep(0.4)
-            print("Backfill complete.")
+              ap=argparse.ArgumentParser()
+              ap.add_argument("--tickers", required=True)
+              ap.add_argument("--days", type=int, default=7)
+              ap.add_argument("--subs", default="wallstreetbets,stocks,StockMarket")
+              ap.add_argument("--cluster_window", type=int, default=60)
+              ap.add_argument("--required_matches", type=int, default=1)
+              ap.add_argument("--single_post_min_score", type=int, default=0)
+              ap.add_argument("--single_post_min_comments", type=int, default=0)
+              ap.add_argument("--min_abs_ret_pct", type=float, default=3.0)
+              a=ap.parse_args()
+
+              global CLUSTER_WINDOW_MIN, REQUIRED_MATCHES, SINGLE_POST_MIN_SCORE, SINGLE_POST_MIN_COMMENTS, MIN_ABS_RET_PCT
+              CLUSTER_WINDOW_MIN=a.cluster_window
+              REQUIRED_MATCHES=a.required_matches
+              SINGLE_POST_MIN_SCORE=a.single_post_min_score
+              SINGLE_POST_MIN_COMMENTS=a.single_post_min_comments
+              MIN_ABS_RET_PCT=a.min_abs_ret_pct
+
+              tickers=[t.strip().upper() for t in a.tickers.split(",") if t.strip()]
+              subs=[s.strip() for s in a.subs.split(",") if s.strip()]
+
+              ensure_headers()
+
+              end=datetime.now(timezone.utc)
+              start=end - timedelta(days=a.days)
+
+              with open(SIGNALS,"a",newline="",encoding="utf-8") as fs, \
+                   open(LABELS,"a",newline="",encoding="utf-8") as fl, \
+                   open(OUTCOMES,"a",newline="",encoding="utf-8") as fo, \
+                   open(DEBUG_COUNTS,"a",newline="",encoding="utf-8") as fd:
+                  ws, wl, wo, wdbg = csv.writer(fs), csv.writer(fl), csv.writer(fo), csv.writer(fd)
+
+                  total_clusters=0
+                  for d in range(a.days, 0, -1):
+                      day_end=end - timedelta(days=d-1)
+                      day_start=end - timedelta(days=d)
+                      after_ts=int(day_start.timestamp()); before_ts=int(day_end.timestamp())
+                      day_str=day_start.date().isoformat()
+
+                      for sub in subs:
+                          for tkr in tickers:
+                              pats=compile_patterns(tkr)
+                              q=f'"{tkr}" OR ${tkr} OR {tkr}'
+                              posts = pushshift_fetch(sub, q, after_ts, before_ts)
+                              fetched=len(posts)
+                              kept=[p for p in posts if post_mentions(p, pats)]
+                              kept.sort(key=lambda x:x["created_utc"])
+
+                              # cluster
+                              i=0; W=CLUSTER_WINDOW_MIN*60; seen=set(); emitted=0
+                              while i<len(kept):
+                                  anchor=kept[i]["created_utc"]; j=i; cluster=[]
+                                  while j<len(kept) and kept[j]["created_utc"]<=anchor+W:
+                                      cluster.append(kept[j]); j+=1
+                                  i+=1
+
+                                  hits=len(cluster)
+                                  score_max=max([p.get("score",0) for p in cluster]) if cluster else 0
+                                  comments_max=max([p.get("num_comments",0) for p in cluster]) if cluster else 0
+                                  score_sum=sum([p.get("score",0) for p in cluster])
+                                  comments_sum=sum([p.get("num_comments",0) for p in cluster])
+                                  titles=[p["title"] for p in cluster[:4]]
+                                  links=[p.get("url","") for p in cluster[:4]]
+                                  has_pos=1 if any(contains_any(p["title"], POS) for p in cluster) else 0
+                                  has_cri=1 if any(contains_any(p["title"], CRISIS) for p in cluster) else 0
+                                  has_earn=1 if any(contains_rx(p["title"], EARN) for p in cluster) else 0
+                                  has_pri=1 if has_primary(links) else 0
+
+                                  cluster_ok = hits>=REQUIRED_MATCHES
+                                  consensus_ok = (score_max>=SINGLE_POST_MIN_SCORE and comments_max>=SINGLE_POST_MIN_COMMENTS)
+                                  if not (cluster_ok or consensus_ok): 
+                                      continue
+
+                                  bucket = anchor//1800
+                                  key=(tkr,bucket)
+                                  if key in seen: 
+                                      continue
+                                  seen.add(key)
+
+                                  ts=datetime.fromtimestamp(anchor,tz=timezone.utc).isoformat()
+                                  sid=f"BF-{tkr}-{anchor}"
+                                  ws.writerow([sid,tkr,ts,hits,score_max,score_sum,comments_max,comments_sum,
+                                               has_pos,has_cri,has_earn,has_pri," || ".join(titles)," || ".join(links),
+                                               score_max,comments_max,hits])
+                                  emitted += 1
+                                  total_clusters += 1
+
+                                  # label from t+60m
+                                  ats=datetime.fromtimestamp(anchor,tz=timezone.utc)
+                                  p0,p1,ret=t60_return(tkr,ats)
+                                  if p0 is not None and p1 is not None and ret is not None:
+                                      wo.writerow([sid,tkr,"t+60m",(ats+timedelta(minutes=60)).isoformat(),
+                                                   f"{p0:.4f}",f"{p1:.4f}",f"{ret:.3f}"])
+                                      y = 1 if abs(ret)>=MIN_ABS_RET_PCT else 0
+                                      wl.writerow([tkr,ts,str(LABEL_WINDOW_MIN), str(y), f"backfill t+60m |Δ|={ret:.2f}%"])
+                                  else:
+                                      wl.writerow([tkr,ts,str(LABEL_WINDOW_MIN), "0", "backfill: price missing"])
+
+                              wdbg.writerow([day_str, sub, tkr, fetched, len(kept), emitted])
+                              print(f"[{day_str}] r/{sub} {tkr}: fetched={fetched} kept={len(kept)} clusters={emitted}")
+
+                  print(f"Backfill done. total_clusters={total_clusters}")
+
           if __name__ == "__main__":
-            main()
+              main()
           PY
           chmod +x tools/backfill_reddit.py
 
-      # ---------- Backfill Reddit chatter (real) ----------
+      # Backfill Reddit chatter → signals + labels
       - name: Backfill Reddit chatter → signals + labels
         if: ${{ inputs.run_mode == 'real_only' || inputs.run_mode == 'both' }}
         run: |
@@ -235,11 +355,12 @@ jobs:
             --days "${{ inputs.backfill_days }}" \
             --subs "${{ inputs.subs }}" \
             --cluster_window "${{ inputs.window }}" \
-            --required_matches 2 \
-            --single_post_min_score 80 \
-            --single_post_min_comments 40 \
+            --required_matches "${{ env.REQ_MATCHES }}" \
+            --single_post_min_score "${{ env.MIN_SCORE }}" \
+            --single_post_min_comments "${{ env.MIN_COMMENTS }}" \
             --min_abs_ret_pct "${{ inputs.min_abs_ret_pct }}"
 
+      # Inspect what changed (so you can tell at a glance)
       - name: Inspect dataset counts
         run: |
           echo "signals rows: $(wc -l < dataset/signals.csv 2>/dev/null || echo 0)"
@@ -247,80 +368,9 @@ jobs:
           echo "outcomes rows:$(wc -l < outcomes.csv 2>/dev/null || echo 0)"
           echo "--- last 5 signals ---"; tail -n 5 dataset/signals.csv || true
           echo "--- last 5 outcomes ---"; tail -n 5 outcomes.csv || true
+          echo "--- last 5 debug counts ---"; tail -n 5 dataset/backfill_debug_counts.csv || true
 
-      # ---------- Mix outcomes.csv -> labels (optional) + minimal-signal backfill ----------
-      - name: Outcomes → Labels (inline)
-        if: ${{ inputs.outcomes_to_labels == 'yes' }}
-        shell: bash
-        run: |
-          python - << 'PY'
-          import os, csv
-          from datetime import datetime, timezone, timedelta
-          DATASET_DIR="dataset"; ALERTS="alerts.csv"; OUTCOMES="outcomes.csv"; LABELS=os.path.join(DATASET_DIR,"labels.csv")
-          min_abs=float("${{ inputs.min_abs_ret_pct }}"); window=int("${{ inputs.window }}")
-          os.makedirs(DATASET_DIR,exist_ok=True)
-          if not os.path.exists(LABELS):
-            csv.writer(open(LABELS,"w",newline="",encoding="utf-8")).writerow(["ticker","iso_time","window_min","y","notes"])
-          def parse_iso(s): 
-            try: return datetime.fromisoformat(s.replace("Z","")).replace(tzinfo=timezone.utc)
-            except: return datetime.now(timezone.utc)
-          if not (os.path.exists(ALERTS) and os.path.exists(OUTCOMES)):
-            print("alerts.csv or outcomes.csv missing; skipping"); raise SystemExit(0)
-          amap={}
-          for r in csv.DictReader(open(ALERTS,newline="",encoding="utf-8")):
-            amap[r.get("id","")] = (r.get("ticker","").upper(), r.get("alert_iso",""))
-          existing=set()
-          if os.path.exists(LABELS):
-            for r in csv.reader(open(LABELS,newline="",encoding="utf-8")): existing.add(tuple(r))
-          added=0
-          for row in csv.DictReader(open(OUTCOMES,newline="",encoding="utf-8")):
-            if row.get("label")!="t+60m": continue
-            rid=row.get("id",""); tkr,aiso=amap.get(rid,(row.get("ticker","").upper(),""))
-            if not aiso:
-              due=parse_iso(row.get("due_iso","")); aiso=(due-timedelta(minutes=60)).isoformat()
-            try: ret=abs(float(row.get("ret_pct","0") or "0"))
-            except: ret=0.0
-            y="1" if ret>=min_abs else "0"
-            lab=[tkr,aiso,str(window),y,f"auto from t+60m |Δ|={ret:.2f}% (id={rid})"]
-            if tuple(lab) not in existing:
-              csv.writer(open(LABELS,"a",newline="",encoding="utf-8")).writerow(lab); existing.add(tuple(lab)); added+=1
-          print(f"Added {added} labels to {LABELS}")
-          PY
-
-      - name: Backfill minimal signals from alerts.csv (inline)
-        if: ${{ inputs.outcomes_to_labels == 'yes' && inputs.since != '' }}
-        shell: bash
-        run: |
-          python - << 'PY'
-          import os, csv
-          from datetime import datetime, timezone
-          DATASET_DIR="dataset"; ALERTS="alerts.csv"; SIGNALS=os.path.join(DATASET_DIR,"signals.csv"); SINCE="${{ inputs.since }}"
-          os.makedirs(DATASET_DIR,exist_ok=True)
-          if not os.path.exists(SIGNALS):
-            csv.writer(open(SIGNALS,"w",newline="",encoding="utf-8")).writerow(["id","ticker","signal_iso","hits_in_window","score_max","score_sum","comments_max","comments_sum","has_positive","has_crisis","has_earnings","has_primary_source_link","titles_concat","links_concat","score_max","comments_max","hits"])
-          def parse_iso(s):
-            try: return datetime.fromisoformat(s.replace("Z","")).replace(tzinfo=timezone.utc)
-            except: return datetime.now(timezone.utc)
-          if not os.path.exists(ALERTS): 
-            print("alerts.csv missing; skip backfill"); raise SystemExit(0)
-          existing=set()
-          if os.path.exists(SIGNALS):
-            for r in csv.DictReader(open(SIGNALS,newline="",encoding="utf-8")): existing.add(r.get("id",""))
-          cutoff=parse_iso(SINCE) if SINCE else None
-          added=0
-          for row in csv.DictReader(open(ALERTS,newline="",encoding="utf-8")):
-            aid=row.get("id",""); tkr=row.get("ticker","").upper(); iso=row.get("alert_iso","")
-            if not aid or not tkr or not iso: continue
-            if cutoff and parse_iso(iso)<cutoff: continue
-            sid=f"MIN-{aid}"
-            if sid in existing: continue
-            hits=int(row.get("hits","0") or "0")
-            csv.writer(open(SIGNALS,"a",newline="",encoding="utf-8")).writerow([sid,tkr,iso,hits,0,0,0,0,0,0,0,0,"","",0,0,hits])
-            existing.add(sid); added+=1
-          print(f"Backfilled {added} minimal signals into {SIGNALS}")
-          PY
-
-      # ---------- Seeding (synthetic) ----------
+      # Synthetic seeding (optional)
       - name: Seed dataset (synthetic)
         if: ${{ inputs.run_mode == 'seed_only' || inputs.run_mode == 'both' }}
         run: |
@@ -336,7 +386,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -f dataset/* outcomes.csv || true
-          git commit -m "seed-and-train: mode=${{ inputs.run_mode }} pos=${POS} neg=${NEG}" || echo "Nothing to commit"
+          git commit -m "dataset: backfill+seed run (mode=${{ inputs.run_mode }}, gates=${{ inputs.gates }})" || echo "Nothing to commit"
           git push || true
 
       - name: Train model
