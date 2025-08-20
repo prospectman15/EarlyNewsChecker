@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-# scanner.py — EarlyNewsChecker
-# - Watchlist news scan (Reddit RSS + Reddit search) with model gating & follow-ups
-# - SILENT price-spike logger (yfinance minute data)
-# - Market-wide hype scanner (dynamic ticker discovery across subs)
+# scanner.py — EarlyNewsChecker (Cross-Platform Edition)
+#
+# What this does every run:
+# 1) NEWS (watchlist): Reddit RSS + Reddit search on a fixed watchlist. Lowered "single-post consensus"
+#    thresholds so you'll actually get alerts (score>=20, comments>=10). Schedules +60m/+24h follow-ups.
+# 2) HYPE (market-wide): Pulls from Reddit subs **and** non-Reddit RSS (Fortune, MIT Tech Review, etc.),
+#    discovers tickers dynamically (cashtags + uppercase tokens), clusters by symbol, computes burst z-score
+#    vs rolling baseline, boosts for multi-sub + multi-domain + cross-platform. Fires alerts and schedules
+#    follow-ups like NEWS.
+# 3) SPIKES (silent): Logs 1-min price spikes for watchlist tickers.
 #
 # Env knobs (defaults shown):
 # REQUIRED_MATCHES=2
@@ -18,8 +24,13 @@
 # HYPE_MIN_HITS=2
 # HYPE_MIN_Z=1.5
 # HYPE_SEND_DISCORD=1
-
-import os, re, csv, json, time, math, random, textwrap
+# EXTRA_RSS="https://fortune.com/feed/,https://www.technologyreview.com/feed/"
+#
+# Files used:
+# alerts.csv (alerts) | outcomes.csv (follow-ups) | signals.csv (training signals)
+# spikes.csv (silent spikes) | labels.csv (labels) | state.json (cooldowns/metrics)
+# metrics.json (optional model threshold) | model.pkl (optional model)
+import os, re, csv, json, time, math, textwrap
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Tuple
 from urllib.parse import urlparse, urlencode, quote_plus
@@ -27,11 +38,8 @@ from urllib.parse import urlparse, urlencode, quote_plus
 import requests
 import yfinance as yf
 
-# ---- local helpers
 from feature_utils import build_features
-from hype_utils import (
-    extract_entities, cluster_by_entity, build_cluster_features, hype_score
-)
+from hype_utils import extract_entities, cluster_by_entity, build_cluster_features, hype_score
 
 # ------------------------ Files ------------------------
 ALERTS_CSV   = "alerts.csv"
@@ -46,16 +54,11 @@ MODEL_FILE   = "model.pkl"      # optional sklearn pipeline
 # ------------------------ Tunables (ENV) ------------------------
 REQUIRED_MATCHES       = int(os.getenv("REQUIRED_MATCHES", "2"))
 CLUSTER_WINDOW_MIN     = int(os.getenv("CLUSTER_WINDOW_MIN", "60"))
-
-# Lowered so you actually get consensus alerts
-SINGLE_POST_MIN_SCORE  = int(os.getenv("SINGLE_POST_MIN_SCORE", "20"))
-SINGLE_POST_MIN_COMMS  = int(os.getenv("SINGLE_POST_MIN_COMMENTS", "10"))
-
+SINGLE_POST_MIN_SCORE  = int(os.getenv("SINGLE_POST_MIN_SCORE", "20"))  # lowered
+SINGLE_POST_MIN_COMMS  = int(os.getenv("SINGLE_POST_MIN_COMMENTS", "10"))  # lowered
 COOLDOWN_MIN_NEWS      = int(os.getenv("COOLDOWN_MIN_NEWS", "9"))
 MODEL_THRESHOLD        = float(os.getenv("MODEL_THRESHOLD", "0.60"))
-
 PRICE_SPIKES_ENABLED   = os.getenv("PRICE_SPIKES_ENABLED", "1") == "1"
-
 DISCORD_WEBHOOK_URL    = os.getenv("DISCORD_WEBHOOK_URL","").strip()
 
 # ---- Hype scan tunables ----
@@ -63,6 +66,9 @@ HYPE_SCAN_ENABLED  = os.getenv("HYPE_SCAN_ENABLED","1") == "1"
 HYPE_MIN_HITS      = int(os.getenv("HYPE_MIN_HITS","2"))
 HYPE_MIN_Z         = float(os.getenv("HYPE_MIN_Z","1.5"))
 HYPE_SEND_DISCORD  = os.getenv("HYPE_SEND_DISCORD","1") == "1"
+
+# Permit user-specified extra RSS feeds (comma-separated)
+EXTRA_RSS_ENV = [u.strip() for u in os.getenv("EXTRA_RSS","").split(",") if u.strip()]
 
 # ------------------------ Watchlist ------------------------
 WATCH_TICKERS: Dict[str, List[str]] = {
@@ -95,20 +101,22 @@ EARNINGS_WORDS: List[str] = [
 ]
 
 # --------------------- Allowed / Blocked Sources ---------------------
+# (Used by watchlist NEWS path; HYPE gathers broadly and is cooled-down by per-entity cooldowns.)
 MEDIA_ALLOW: List[str] = [
     "sec.gov","businesswire.com","prnewswire.com","globenewswire.com",
-    "seekingalpha.com","wsj.com","bloomberg.com","reuters.com","ft.com",
-    "investors.com","marketwatch.com","techcrunch.com","theverge.com",
-    "investorplace.com","fool.com","cnbc.com","forbes.com",
+    "reuters.com","ft.com","wsj.com","bloomberg.com","cnbc.com","marketwatch.com",
+    "fortune.com","technologyreview.com","ieee.org","techcrunch.com","theverge.com",
+    "investors.com","apnews.com","fool.com","forbes.com","seekingalpha.com",
 ]
 MEDIA_BLACKLIST: List[str] = [
-    "zerohedge.com","benzinga.com","thestreet.com","yahoo.com","yahoo.co",
-    "reddit.com","old.reddit.com","www.reddit.com","imgur.com","medium.com",
+    "zerohedge.com","benzinga.com","thestreet.com",
+    "reddit.com","old.reddit.com","www.reddit.com",
+    "imgur.com","medium.com","yahoo.com","news.yahoo.com",
 ]
 
-# ------------------ RSS Sources (expanded) ------------------
-RSS_SOURCES: List[str] = [
-    # Investing / trading
+# ------------------ RSS Sources ------------------
+# Reddit (investing + tech/AI where narratives start)
+REDDIT_RSS: List[str] = [
     "https://www.reddit.com/r/StockMarket/.rss",
     "https://www.reddit.com/r/markets/.rss",
     "https://www.reddit.com/r/investing/.rss",
@@ -116,7 +124,6 @@ RSS_SOURCES: List[str] = [
     "https://www.reddit.com/r/options/.rss",
     "https://www.reddit.com/r/stocks/.rss",
     "https://www.reddit.com/r/wallstreetbets/.rss",
-    # Tech / AI where narratives start
     "https://www.reddit.com/r/technology/.rss",
     "https://www.reddit.com/r/ArtificialIntelligence/.rss",
     "https://www.reddit.com/r/datascience/.rss",
@@ -125,13 +132,20 @@ RSS_SOURCES: List[str] = [
     "https://www.reddit.com/r/technews/.rss",
 ]
 
-# ------------------ Utility helpers ------------------
+# Non-Reddit news/analysis RSS (safe defaults; you can add more via EXTRA_RSS)
+NEWS_RSS: List[str] = [
+    "https://fortune.com/feed/",
+    "https://www.technologyreview.com/feed/",
+    "https://techcrunch.com/feed/",
+    "https://www.theverge.com/rss/index.xml",
+    "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",   # WSJ Markets (may include paywalled items)
+] + EXTRA_RSS_ENV
 
+# ------------------ Utility helpers ------------------
 def ensure_csv_headers(path: str, headers: List[str]) -> None:
     if not os.path.exists(path) or os.stat(path).st_size == 0:
         with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(headers)
+            csv.writer(f).writerow(headers)
 
 def append_csv(path: str, row: List[Any]) -> None:
     with open(path, "a", newline="", encoding="utf-8") as f:
@@ -140,13 +154,11 @@ def append_csv(path: str, row: List[Any]) -> None:
 def send_discord(message: str, title: str = "Early Event Scanner") -> None:
     if not DISCORD_WEBHOOK_URL:
         return
-    payload = {
-        "embeds": [{
-            "title": title,
-            "description": message[:4000],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }]
-    }
+    payload = {"embeds": [{
+        "title": title,
+        "description": message[:4000],
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }]}
     try:
         requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
     except Exception:
@@ -189,21 +201,16 @@ def is_blacklisted(url: str) -> bool:
     return False
 
 # ------------------ Market time ------------------
-
 def is_market_open(now: datetime | None = None) -> bool:
-    # Eastern Time window 9:30–16:00, Mon–Fri; coarse check using UTC offsets
-    # User is in America/New_York per project settings.
+    # Eastern Time window 9:30–16:00, Mon–Fri (approx without tz libs)
     now = now or datetime.now(timezone.utc)
-    # Approx ET: UTC-4 in Aug; we don't import pytz here, so adjust roughly
-    et = now - timedelta(hours=4)
-    if et.weekday() >= 5:   # Sat/Sun
+    et = now - timedelta(hours=4)  # EDT rough offset
+    if et.weekday() >= 5:
         return False
-    h, m = et.hour, et.minute
-    minutes = h*60 + m
+    minutes = et.hour*60 + et.minute
     return (9*60 + 30) <= minutes <= (16*60)
 
 # ------------------ Pricing ------------------
-
 def get_last_price(ticker: str) -> float:
     try:
         df = yf.download(tickers=ticker, period="1d", interval="1m", progress=False)
@@ -228,45 +235,84 @@ def get_intraday_df(ticker: str):
         return None
 
 # ------------------ Fetchers ------------------
+def _parse_rss_items(xml_text: str) -> List[Dict[str, Any]]:
+    """Very tolerant RSS/Atom title/link parser (no extra deps)."""
+    items: List[Dict[str, Any]] = []
+    # split on <item> (RSS) and <entry> (Atom)
+    blobs = re.split(r"<item>|<entry>", xml_text)[1:]
+    for raw in blobs:
+        # title
+        m_title = re.search(r"<title[^>]*>(<!\[CDATA\[)?(.*?)(\]\]>)?</title>", raw, re.S|re.I)
+        if not m_title:
+            continue
+        title = m_title.group(2) if m_title.group(2) else ""
+        title = re.sub(r"<.*?>","", title).strip()
+        # link (prefer <link> url or href)
+        link = ""
+        m_link = re.search(r"<link[^>]*>(.*?)</link>", raw, re.S|re.I)
+        if m_link:
+            link = re.sub(r"<.*?>","", (m_link.group(1) or "")).strip()
+        else:
+            m_href = re.search(r"<link[^>]*href=[\"'](.*?)[\"'][^>]*>", raw, re.S|re.I)
+            if m_href:
+                link = (m_href.group(1) or "").strip()
+        if not title:
+            continue
+        items.append({"title": title, "url": link})
+    return items
 
-def fetch_rss(url: str) -> List[Dict[str, Any]]:
-    """Fetch a Reddit .rss feed and return lightweight items."""
+def fetch_rss_reddit(url: str) -> List[Dict[str, Any]]:
     try:
         r = requests.get(url, timeout=20, headers={"User-Agent":"EarlyNewsChecker/1.0"})
         r.raise_for_status()
-        text = r.text
-        # super simple RSS item extraction
-        items = []
-        for raw in re.split(r"<item>|<entry>", text)[1:]:
-            title_m = re.search(r"<title>(<!\[CDATA\[)?(.*?)(\]\]>)?</title>", raw, re.S|re.I)
-            link_m  = re.search(r"<link.*?>(.*?)</link>", raw, re.S|re.I)
-            if not title_m:
-                continue
-            title = re.sub(r"<.*?>","", title_m.group(2) if title_m.group(2) else "").strip()
-            link  = ""
-            if link_m:
-                link = re.sub(r"<.*?>","", link_m.group(1)).strip()
-            items.append({
-                "title": title,
-                "url": link,
-                "permalink": link,
+        out = []
+        for it in _parse_rss_items(r.text):
+            out.append({
+                "title": it["title"],
+                "url": it.get("url",""),
+                "permalink": it.get("url",""),
                 "created_utc": time.time(),
                 "num_comments": 0,
                 "score": 0,
                 "source": url,
+                "platform": "reddit",
                 "subreddit": url.split("/r/")[1].split("/")[0] if "/r/" in url else "reddit",
             })
-        return items
+        return out
+    except Exception:
+        return []
+
+def fetch_rss_news(url: str) -> List[Dict[str, Any]]:
+    try:
+        r = requests.get(url, timeout=20, headers={"User-Agent":"EarlyNewsChecker/1.0"})
+        r.raise_for_status()
+        out = []
+        for it in _parse_rss_items(r.text):
+            # derive host
+            host = ""
+            try:
+                host = urlparse(it.get("url","")).netloc
+            except Exception:
+                pass
+            out.append({
+                "title": it["title"],
+                "url": it.get("url",""),
+                "permalink": it.get("url",""),
+                "created_utc": time.time(),
+                "num_comments": 0,
+                "score": 0,
+                "source": host or url,
+                "platform": "news",
+                "subreddit": host or "news",
+            })
+        return out
     except Exception:
         return []
 
 def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
-    """Use Reddit search JSON (no auth). This returns richer fields (score/comments)."""
+    """Unauthenticated Reddit search JSON."""
     try:
-        params = {
-            "q": query, "sort": "new", "restrict_sr": False, "limit": limit,
-            "include_over_18": False
-        }
+        params = {"q": query, "sort": "new", "restrict_sr": False, "limit": limit, "include_over_18": False}
         u = "https://www.reddit.com/search.json?" + urlencode(params)
         r = requests.get(u, timeout=15, headers={"User-Agent": "EarlyNewsChecker/1.0"})
         r.raise_for_status()
@@ -282,6 +328,7 @@ def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
                 "num_comments": d.get("num_comments", 0),
                 "score": d.get("score", 0),
                 "source": "reddit_search",
+                "platform": "reddit",
                 "subreddit": d.get("subreddit",""),
             })
         return out
@@ -289,13 +336,15 @@ def fetch_reddit_search(query: str, limit: int = 25) -> List[Dict[str, Any]]:
         return []
 
 # ------------------ Signal logging ------------------
+def ensure_signal_headers():
+    ensure_csv_headers(SIGNALS_CSV, [
+        "id","ticker","ts","hits_in_window","score_max","comments_max","titles","links","features_json"
+    ])
 
 def log_signal_row(sig_id: str, ticker: str, ts_iso: str,
                    feats_vec: List[float], titles: List[str], links: List[str],
                    score_max: float, comments_max: float, hits_in_window: int) -> None:
-    ensure_csv_headers(SIGNALS_CSV, [
-        "id","ticker","ts","hits_in_window","score_max","comments_max","titles","links","features_json"
-    ])
+    ensure_signal_headers()
     features_json = json.dumps(feats_vec)
     titles_join   = " || ".join(titles or [])[:1800]
     links_join    = " | ".join(links or [])[:1800]
@@ -305,32 +354,19 @@ def log_signal_row(sig_id: str, ticker: str, ts_iso: str,
     ])
 
 # ------------------ News Scan (watchlist) ------------------
-
 def allowed_news_post(title: str, url: str) -> bool:
-    """Require that we have a non-blacklisted host OR investor/IR/SEC domains."""
+    """Block only clear blacklist; allow others (Reddit posts often summarize)."""
     if not url:
         return True
     if is_blacklisted(url):
         return False
-    # If there is a host and it's neither allowed nor investor/ir, still permit
-    # because Reddit posts often summarize. We only *block* clear blacklist.
     return True
 
 def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """
-    For each watchlist ticker:
-      - Gather posts from RSS feeds and Reddit search that mention aliases
-      - Require also lexicon hit (positive/crisis/earnings)
-      - Fire alert if (>= REQUIRED_MATCHES within CLUSTER_WINDOW_MIN minutes) OR
-        (single consensus post meets score/comments)
-      - Model gate if model present (optional)
-      - Log to alerts.csv and schedule follow-ups
-    """
     new_alerts: List[Dict[str, Any]] = []
 
-    # Load optional model + threshold
-    mdl = None
-    learned_thr = None
+    # Optional model + threshold
+    mdl, learned_thr = None, None
     if os.path.exists(MODEL_FILE):
         try:
             import pickle
@@ -346,22 +382,20 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         except Exception:
             learned_thr = None
 
-    # Cooldowns
     cds = state.setdefault("cooldowns_news", {})
     now_ts = int(time.time())
-
-    # Fetch pool
-    pool: List[Dict[str, Any]] = []
-    for u in RSS_SOURCES:
-        pool.extend(fetch_rss(u))
-
-    # Build per-ticker clusters
     window_sec = CLUSTER_WINDOW_MIN * 60
+
+    # Pool from Reddit RSS (watchlist only uses Reddit + Reddit search)
+    pool: List[Dict[str, Any]] = []
+    for u in REDDIT_RSS:
+        pool.extend(fetch_rss_reddit(u))
+
+    # Per-ticker clusters
     for ticker, aliases in WATCH_TICKERS.items():
-        # collect posts mentioning this ticker/aliases
         posts: List[Dict[str, Any]] = []
-        q_parts = [quote_plus(a) for a in aliases]
-        # 1) RSS pool
+
+        # Reddit RSS pool
         for it in pool:
             title = it.get("title","")
             url   = it.get("url","") or it.get("permalink","")
@@ -374,37 +408,28 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             ):
                 posts.append(it)
 
-        # 2) Reddit search JSON (richer engagement metrics)
+        # Reddit Search (richer engagement)
         q = " OR ".join(aliases)
         posts.extend(fetch_reddit_search(q, limit=25))
 
-        # Time window filter
+        # window filter
         recent_posts = []
         now_ts = int(time.time())
         for p in posts:
             ts = int(p.get("created_utc") or now_ts)
             if (now_ts - ts) <= window_sec:
                 recent_posts.append(p)
-
         if not recent_posts:
             continue
 
-        # Cluster rule OR single-post consensus
         titles = [p.get("title","") for p in recent_posts]
         urls   = [p.get("url","") or p.get("permalink","") for p in recent_posts]
         scores = [int(p.get("score",0) or 0) for p in recent_posts]
         comms  = [int(p.get("num_comments",0) or 0) for p in recent_posts]
 
-        # consensus
-        consensus_ok = False
-        for s, c in zip(scores, comms):
-            if s >= SINGLE_POST_MIN_SCORE and c >= SINGLE_POST_MIN_COMMS:
-                consensus_ok = True
-                break
-
-        # corroboration
+        # consensus vs corroboration
+        consensus_ok = any(s >= SINGLE_POST_MIN_SCORE and c >= SINGLE_POST_MIN_COMMS for s,c in zip(scores,comms))
         corroboration_ok = len(recent_posts) >= REQUIRED_MATCHES
-
         if not (consensus_ok or corroboration_ok):
             continue
 
@@ -413,17 +438,10 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         cds[ticker] = now_ts
 
-        # price
         spot = get_last_price(ticker)
 
-        # Message & features
-        msg = f"**{ticker}** — {len(recent_posts)} hits in {CLUSTER_WINDOW_MIN}m\n" + \
-              ("\n".join(f"- {t}" for t in titles[:5]))
-        if urls:
-            msg += "\nLinks: " + " | ".join(urls[:5])
-
-        # log training signal
-        feats_vec, _map = build_features(titles, urls, scores, comms, hits_in_window=len(recent_posts))
+        # features + training logging
+        feats_vec, _ = build_features(titles, urls, scores, comms, hits_in_window=len(recent_posts))
         sig_id = f"SIGNAL-{ticker}-{now_ts}"
         log_signal_row(sig_id, ticker, datetime.now(timezone.utc).isoformat(),
                        feats_vec, titles, urls, max(scores or [0]), max(comms or [0]),
@@ -434,16 +452,19 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
             try:
                 prob = float(mdl["clf"].predict_proba([feats_vec])[0][1])  # type: ignore
                 use_thr = learned_thr if learned_thr is not None else MODEL_THRESHOLD
-                msg += f"\nModel score: {prob:.2f} (thr {use_thr:.2f})"
                 if prob < use_thr:
-                    # still log the training row above, but skip alerting
                     continue
             except Exception:
                 pass
 
-        # Send + schedule follow-ups
-        send_discord(msg, title="Early Event Scanner")
+        # Discord
+        msg = f"**{ticker}** — {len(recent_posts)} hits in {CLUSTER_WINDOW_MIN}m\n" + \
+              ("\n".join(f"- {t}" for t in titles[:5]))
+        if urls:
+            msg += "\nLinks: " + " | ".join(urls[:5])
+        send_discord(msg, title="Early Event — Watchlist")
 
+        # schedule follow-ups
         aid = f"NEWS-{ticker}-{now_ts}"
         t60  = now_ts + 60*60
         t24h = now_ts + 24*60*60
@@ -461,12 +482,11 @@ def scan_news(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     return new_alerts
 
 # --------------------- SILENT price spike logging ---------------------
-
 PRICE_SPIKE = {
-    "from_open_abs_pct": 4.0,      # |last/open - 1| >= 4%
-    "ten_min_abs_pct":   1.5,      # |last/last_10m - 1| >= 1.5%
-    "volume_mult":       1.4,      # 10m avg vol vs today's per-minute avg
-    "big_move_abs_pct":  5.0,      # bypass volume if >= 5%
+    "from_open_abs_pct": 4.0,
+    "ten_min_abs_pct":   1.5,
+    "volume_mult":       1.4,
+    "big_move_abs_pct":  5.0,
     "cooldown_min":      45,
 }
 
@@ -491,12 +511,8 @@ def scan_price_spikes(state: Dict[str, Any]) -> int:
         last = float(df["Close"].iloc[-1])
         opn  = float(df["Open"].iloc[0])
         chg_from_open_pct = (last / opn - 1.0) * 100.0
-
-        # 10-minute change
         last10 = float(df["Close"].iloc[-11])
         chg_10m_pct = (last / last10 - 1.0) * 100.0
-
-        # volume ratio
         vol10 = float(df["Volume"].iloc[-11:-1].mean() or 0.0)
         volday= float(df["Volume"].mean() or 1.0)
         vol_mult = (vol10 / max(1.0, volday)) if volday else 0.0
@@ -513,46 +529,46 @@ def scan_price_spikes(state: Dict[str, Any]) -> int:
                 f"{chg_from_open_pct:.3f}", f"{chg_10m_pct:.3f}",
                 f"{vol_mult:.3f}"
             ])
-            # Optional: add a positive label at this timestamp to seed learning
             append_csv(LABELS_CSV, [datetime.now(timezone.utc).isoformat(), ticker, "spike"])
             logged += 1
 
     return logged
 
-# ---------------------- Market-wide Hype Scanner ----------------------
-
+# ---------------------- Market-wide Hype Scanner (Cross-Platform) ----------------------
 def scan_hype_market(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
-    Market-wide hype scan:
-      - Pull recent items from RSS_SOURCES (Reddit subs)
-      - Group by detected entities (tickers/ETFs via cashtags & uppercase tokens)
-      - Compute a simple burst score per entity vs. rolling baseline in state["metrics"]
-      - Emit alerts when z >= HYPE_MIN_Z and hits >= HYPE_MIN_HITS
-      - Schedule +60m and +24h follow-ups (like news alerts)
-    Returns a list of alert dicts with id/ticker/ts/price/hits.
+    Cross-platform hype scan:
+      - Pulls Reddit RSS + non-Reddit RSS (NEWS_RSS + EXTRA_RSS env)
+      - Discovers tickers/ETFs dynamically; clusters by symbol
+      - Computes burst z vs. rolling baseline (state["metrics"])
+      - Boosts with amplification: distinct subreddits + distinct host domains + cross-platform presence
+      - Fires when z >= HYPE_MIN_Z and hits >= HYPE_MIN_HITS
+      - Schedules +60m and +24h follow-ups (like news)
     """
     if not HYPE_SCAN_ENABLED or not is_market_open():
         return []
 
-    # Collect recent items from all RSS feeds
+    # 1) Collect items
     items: List[Dict[str, Any]] = []
-    for url in RSS_SOURCES:
-        try:
-            items.extend(fetch_rss(url))
-        except Exception:
-            pass
+    # Reddit
+    for url in REDDIT_RSS:
+        items.extend(fetch_rss_reddit(url))
+    # Non-Reddit news
+    for url in NEWS_RSS:
+        items.extend(fetch_rss_news(url))
+
     if not items:
         return []
 
-    # Cluster by symbol/entity
+    # 2) Cluster by symbol/entity
     buckets = cluster_by_entity(items)
     t_now   = datetime.now(timezone.utc)
     alerts: List[Dict[str, Any]] = []
 
-    # rolling metrics for z-score baselines
+    # 3) Rolling baselines for z-score
     metrics = state.setdefault("metrics", {})
     state.setdefault("pending", [])
-    cds = state.setdefault("cooldowns_news", {})  # reuse news cooldown
+    cds = state.setdefault("cooldowns_news", {})  # reuse news cooldown to avoid spam
     now_ts = int(t_now.timestamp())
 
     for ent, cluster in buckets.items():
@@ -561,11 +577,22 @@ def scan_hype_market(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         if hits < HYPE_MIN_HITS:
             continue
 
+        # Amplification extras: platforms and host diversity
+        platforms = {it.get("platform","?") for it in cluster}
+        host_set  = set()
+        for it in cluster:
+            try:
+                host_set.add(urlparse(it.get("url","")).netloc)
+            except Exception:
+                pass
+        platform_count = len({p for p in platforms if p})
+        host_count     = len({h for h in host_set if h})
+
         # baseline BEFORE updating
         m          = metrics.setdefault(ent, {"count": 0, "total": 0})
         prev_count = int(m.get("count", 0))
         prev_total = int(m.get("total", 0))
-        mu         = max(1.0, prev_count / max(1, prev_total))  # naive baseline
+        mu         = max(1.0, prev_count / max(1, prev_total))
         z          = (hits - mu) / (mu ** 0.5)
 
         if z < HYPE_MIN_Z:
@@ -575,66 +602,65 @@ def scan_hype_market(state: Dict[str, Any]) -> List[Dict[str, Any]]:
         m["count"] = prev_count + hits
         m["total"] = prev_total + 1
 
-        # cooldown
+        # per-entity cooldown
         if ent in cds and (now_ts - int(cds[ent])) < COOLDOWN_MIN_NEWS * 60:
             continue
         cds[ent] = now_ts
 
-        # Build output + (optional) model features for training
         titles = [it.get("title","") for it in cluster]
         links  = [it.get("url","") or it.get("permalink","") for it in cluster]
         scores = [int(it.get("score",0) or 0) for it in cluster]
         comms  = [int(it.get("num_comments",0) or 0) for it in cluster]
 
+        # Build standard features and log for training
         feats_vec, _ = build_features(titles, links, scores, comms, hits_in_window=hits)
+        sig_id = f"HYPE-{ent}-{now_ts}"
 
-        # Price and IDs
-        ticker  = ent
-        sig_id  = f"HYPE-{ticker}-{now_ts}"
+        # Price
         try:
-            spot = float(get_last_price(ticker))
+            spot = float(get_last_price(ent))
         except Exception:
             spot = 0.0
 
         # Training log
-        log_signal_row(sig_id, ticker, t_now.isoformat(), feats_vec, titles, links,
+        log_signal_row(sig_id, ent, t_now.isoformat(), feats_vec, titles, links,
                        max(scores or [0]), max(comms or [0]), hits)
 
-        # Human-friendly why + hype score
-        why = f"burst z={z:.1f}, hits={hits}, subs={feats['subs']}, hosts={feats['hosts']}, pol={feats['polarity']:+.2f}"
-        hyp = hype_score(feats, z)
+        # Compose 'why' with cross-platform evidence
+        why = (
+            f"burst z={z:.1f}, hits={hits}, subs={feats['subs']}, "
+            f"hosts={max(feats['hosts'], host_count)}, platforms={platform_count}, "
+            f"pol={feats['polarity']:+.2f}"
+        )
 
-        # Optional Discord ping
+        # Optional Discord ping (include first few links)
         if HYPE_SEND_DISCORD:
-            preview = " • ".join(titles[:3])
-            msg = (f"**HYPE** {ticker} — {why}\n"
+            msg = (f"**HYPE** {ent} — {why}\n"
                    f"Price: {spot:.2f}\n"
-                   f"{('Links: ' + ' | '.join(links[:3])) if links else ''}\n"
-                   f"(hype={hyp:.2f})")
+                   f"{('Links: ' + ' | '.join(links[:3])) if links else ''}")
             try:
-                send_discord(msg, title="Market-wide Hype")
+                send_discord(msg, title="Market-wide Hype (Cross-Platform)")
             except Exception:
                 pass
 
-        # Schedule follow-ups
+        # schedule follow-ups
         t60  = now_ts + 60*60
         t24h = now_ts + 24*60*60
         state["pending"].extend([
-            {"id": sig_id, "ticker": ticker, "alert_ts": now_ts, "alert_px": spot,
+            {"id": sig_id, "ticker": ent, "alert_ts": now_ts, "alert_px": spot,
              "due_ts": t60,  "label": "t+60m", "done": False},
-            {"id": sig_id, "ticker": ticker, "alert_ts": now_ts, "alert_px": spot,
+            {"id": sig_id, "ticker": ent, "alert_ts": now_ts, "alert_px": spot,
              "due_ts": t24h, "label": "t+24h", "done": False},
         ])
 
         alerts.append({
-            "id": sig_id, "ticker": ticker, "ts": t_now.isoformat(),
-            "price": spot, "hits": hits, "hype": round(hyp, 3), "why": why
+            "id": sig_id, "ticker": ent, "ts": t_now.isoformat(),
+            "price": spot, "hits": hits, "why": why
         })
 
     return alerts
 
 # ---------------------- Follow-ups ----------------------
-
 def process_followups() -> List[Dict[str, Any]]:
     """Run due follow-ups and write outcomes.csv rows."""
     ensure_csv_headers(OUTCOMES_CSV, ["id","ticker","label","due_ts","alert_price","cur_price","ret_pct"])
@@ -651,11 +677,11 @@ def process_followups() -> List[Dict[str, Any]]:
     new_pending = []
 
     for p in pending:
-        if p.get("done"):  # already processed
+        if p.get("done"):
             continue
         due = int(p.get("due_ts", 0))
         if now_ts >= due:
-            ticker = p.get("ticker","")
+            ticker   = p.get("ticker","")
             alert_px = float(p.get("alert_px", 0.0))
             cur_px   = get_last_price(ticker)
             ret_pct  = (cur_px / alert_px - 1.0)*100.0 if alert_px else 0.0
@@ -670,26 +696,22 @@ def process_followups() -> List[Dict[str, Any]]:
     state["pending"] = new_pending
     with open(STATE_FILE,"w",encoding="utf-8") as f:
         json.dump(state, f)
-
     return out
 
 # ---------------------- Main ----------------------
-
 def main():
     mode = os.getenv("MODE","").strip()
     ensure_csv_headers(ALERTS_CSV, ["id","ticker","ts","price","hits"])
     ensure_csv_headers(OUTCOMES_CSV, ["id","ticker","label","due_ts","alert_price","cur_price","ret_pct"])
 
     if mode == "weekly":
-        # optional weekly summary could be implemented here
-        print("Weekly mode: not implemented in this minimal file.")
+        print("Weekly mode placeholder.")
         return
     if mode == "test":
         send_discord("**TEST** — webhook is working ✅", title="Test Alert")
         print("Sent test message.")
         return
 
-    # Hard gate: skip scan if market is closed
     if not is_market_open():
         print("Market closed — skipping scan and follow-ups.")
         return
@@ -701,15 +723,16 @@ def main():
             state = json.load(open(STATE_FILE,"r",encoding="utf-8"))
         except Exception:
             state = {}
-    state.setdefault("pending", []); state.setdefault("metrics", {})
+    state.setdefault("pending", [])
+    state.setdefault("metrics", {})
 
-    # 1) News-based alerts (watchlist)
+    # 1) Watchlist news alerts
     news_alerts = scan_news(state)
 
-    # 2) Market-wide hype alerts (dynamic discovery)
+    # 2) Market-wide cross-platform hype alerts
     hype_alerts = scan_hype_market(state)
 
-    # 3) Silent price spike logging
+    # 3) Silent price spikes
     spikes_logged = scan_price_spikes(state) if PRICE_SPIKES_ENABLED else 0
 
     # Log alerts
@@ -720,7 +743,7 @@ def main():
     with open(STATE_FILE,"w",encoding="utf-8") as f:
         json.dump(state, f)
 
-    # 4) Process follow-ups (for both news & hype alerts, we added them to pending)
+    # 4) Process follow-ups
     outcomes = process_followups()
     for o in outcomes:
         append_csv(OUTCOMES_CSV, [
@@ -729,10 +752,10 @@ def main():
         ])
 
     print("Scan complete.",
-          "News alerts:", len(news_alerts),
-          "Hype alerts:", len(hype_alerts),
-          "Spikes logged:", spikes_logged,
-          "Follow-ups processed:", len(outcomes))
+          "News:", len(news_alerts),
+          "Hype:", len(hype_alerts),
+          "Spikes:", spikes_logged,
+          "Followups:", len(outcomes))
 
 if __name__ == "__main__":
     main()
