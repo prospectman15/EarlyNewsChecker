@@ -1,22 +1,17 @@
-name: early-event-scan
+name: Market Hype Scan
 
 on:
+  workflow_dispatch: {}
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes (UTC)
-  workflow_dispatch: {}       # manual "Run workflow" button
+    # every 10 minutes, Mon–Fri (UTC). Your script already gates by market hours.
+    - cron: "*/10 * * * 1-5"
+
+permissions:
+  contents: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-
-    # required to push heartbeat/state/log CSVs
-    permissions:
-      contents: write
-
-    # serialize any repo writes across workflows to avoid collisions
-    concurrency:
-      group: ${{ github.repository }}-repo-writes
-      cancel-in-progress: false
 
     steps:
       - name: Checkout repo
@@ -28,65 +23,47 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Quick syntax check
-        run: python -m py_compile scanner.py
-
-      - name: Restore state & logs
-        uses: actions/cache@v4
-        with:
-          path: |
-            state.json
-            alerts.csv
-            outcomes.csv
-          key: scan-${{ github.run_id }}
-          restore-keys: |
-            scan-
-            state-
-
-      - name: Write heartbeat (proof it ran)
-        run: echo "last_run_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > heartbeat.txt
-
       - name: Run scanner
         env:
+          # 🔔 set this Secret in GitHub: Settings → Secrets and variables → Actions → New repository secret
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: python scanner.py
 
-      - name: Commit state & logs (safe rebase + retry)
-        if: always()
+          # --- Watchlist news thresholds (lowered so it fires more) ---
+          SINGLE_POST_MIN_SCORE: "20"
+          SINGLE_POST_MIN_COMMENTS: "10"
+          REQUIRED_MATCHES: "2"
+          CLUSTER_WINDOW_MIN: "60"
+          COOLDOWN_MIN_NEWS: "9"
+
+          # --- Cross-platform hype scan (Reddit + non-Reddit RSS) ---
+          HYPE_SCAN_ENABLED: "1"
+          HYPE_MIN_HITS: "2"
+          HYPE_MIN_Z: "1.5"
+          HYPE_SEND_DISCORD: "1"
+
+          # Add more non-Reddit RSS feeds here (comma-separated)
+          EXTRA_RSS: "https://fortune.com/feed/,https://www.technologyreview.com/feed/,https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+
+          # Price spikes on watchlist (silent CSV logging)
+          PRICE_SPIKES_ENABLED: "1"
         run: |
-          set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python scanner.py
 
-          # Stage first so rebase won't complain about unstaged changes
-          git add -A || true
-
-          # Nothing to commit? exit cleanly
-          if git diff --cached --quiet; then
-            echo "Nothing to commit"
-            exit 0
-          fi
-
-          # Rebase with autostash to avoid conflicts with other workflows
-          git pull --rebase --autostash || true
-
-          # Commit and push (retry in case another job just pushed)
-          git commit -m "scan: update state/logs [skip ci]" || true
-          for i in 1 2 3; do
-            if git push; then
-              echo "Pushed successfully"
-              exit 0
-            else
-              git pull --rebase --autostash || true
-              sleep 2
-            fi
-          done
-
-          echo "Push failed after retries"
-          exit 1
+      - name: Commit results (alerts/outcomes/signals/state)
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: scanner run [skip ci]"
+          file_pattern: |
+            alerts.csv
+            outcomes.csv
+            signals.csv
+            spikes.csv
+            labels.csv
+            state.json
