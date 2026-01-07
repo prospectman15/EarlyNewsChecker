@@ -1,6 +1,6 @@
 {
   "mode": "logreg",
-  "auc": 0.7724935064935067,
+  "auc": 0.7699220779220778,
   "best_threshold": 0.65,
   "precision_at_best": 0.5142857142857142,
   "recall_at_best": 0.8181818181818182,
